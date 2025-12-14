@@ -1,0 +1,130 @@
+services:
+
+  auth_db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - auth_db_data:/var/lib/postgresql/data
+    networks:
+      - aivent-net
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    hostname: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    networks:
+      - aivent-net
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    networks:
+      - aivent-net
+
+  # ===========================
+  # AUTH SERVICE
+  # ===========================
+  auth_service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    depends_on:
+      - auth_db
+      - rabbitmq
+      - redis
+    env_file:
+      - ./auth-service/.env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./auth-service/media:/app/media
+      - ./auth-service/keys/private.pem:/app/keys/private.pem
+      - ./auth-service/keys/public.pem:/app/keys/public.pem
+    networks:
+      - aivent-net
+    command: >
+      sh -c "
+        /wait-for-db.sh auth_db 5432 &&
+        python manage.py migrate &&
+        python manage.py runserver 0.0.0.0:8000
+      "
+
+  auth_celery_worker:
+    build:
+      context: ./auth-service
+    command: celery -A auth_project worker --loglevel=info --concurrency=2
+    depends_on:
+      - auth_service
+      - rabbitmq
+      - redis
+    env_file:
+      - ./auth-service/.env
+    networks:
+      - aivent-net
+
+  auth_celery_beat:
+    build:
+      context: ./auth-service
+    command: celery -A auth_project beat --loglevel=info
+    depends_on:
+      - auth_service
+      - rabbitmq
+      - redis
+    env_file:
+      - ./auth-service/.env
+    networks:
+      - aivent-net
+
+  # ===========================
+  # VENDOR SERVICE
+  # ===========================
+  vendor_db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: vendor_db
+      POSTGRES_USER: vendor
+      POSTGRES_PASSWORD: vendorpass
+    ports:
+      - "5436:5432"
+    volumes:
+      - vendor_db_data:/var/lib/postgresql/data
+    networks:
+      - aivent-net
+
+  vendor_service:
+    build:
+      context: ./vendor-service
+    depends_on:
+      - vendor_db
+    env_file:
+      - ./vendor-service/.env
+    volumes:
+      - ./auth-service/keys/public.pem:/app/keys/public.pem:ro
+    ports:
+      - "8002:8000"
+    networks:
+      - aivent-net
+    command: >
+      sh -c "
+        /wait-for-db.sh vendor_db 5432 &&
+        python manage.py migrate &&
+        python manage.py runserver 0.0.0.0:8000
+      "
+
+networks:
+  aivent-net:
+
+volumes:
+  auth_db_data:
+  vendor_db_data:

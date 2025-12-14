@@ -1,0 +1,17 @@
+Django
+djangorestframework
+djangorestframework-simplejwt
+drf-yasg
+psycopg2-binary
+python-dotenv
+requests
+msal
+qrcode
+Pillow
+celery
+redis
+django-redis
+pika
+django-celery-results  
+django-cors-headers
+pyotp
