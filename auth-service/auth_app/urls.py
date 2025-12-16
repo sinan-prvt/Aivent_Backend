@@ -18,8 +18,6 @@ from .views.password import ResetPasswordView
 from .views.social import GoogleLoginView, MicrosoftAuthView
 from .views.health import health_check
 from .views.verify_mfa import VerifyMFAView
-from .views.vendor_register import VendorRegisterView
-from .views.vendor_verify_otp import VendorVerifyOTPView
 from .views.internal_vendor_approve import InternalVendorApprove
 
 urlpatterns = [
@@ -49,8 +47,6 @@ urlpatterns = [
 
     path("verify-mfa/", VerifyMFAView.as_view()),
 
-    path("register-vendor/", VendorRegisterView.as_view(), name="vendor-register"),
-    path("verify-vendor-otp/", VendorVerifyOTPView.as_view(), name="vendor-verify-otp"),
     path("internal/vendor/approve/", InternalVendorApprove.as_view(), name="internal-vendor-approve"),
 
 ]

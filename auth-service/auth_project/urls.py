@@ -4,6 +4,7 @@ from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from django.conf import settings
 from django.conf.urls.static import static
+from auth_app.views.internal_users import InternalUserCreateView
 
 schema_view = get_schema_view(
     openapi.Info(
@@ -20,6 +21,11 @@ urlpatterns = [
     path("api/users/", include("user_app.urls")),
     
     path("admin-api/", include("auth_app.urls_admin")),
+
+    path(
+    "api/auth/internal/users/",
+    InternalUserCreateView.as_view(),
+    ),
     
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
 

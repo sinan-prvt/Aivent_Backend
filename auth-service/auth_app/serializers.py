@@ -139,33 +139,6 @@ class ChangePasswordSerializer(serializers.Serializer):
     new_password = serializers.CharField(required=True, min_length=8)
 
     
-class VendorRegisterSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    username = serializers.CharField()
-    password = serializers.CharField(write_only=True)
-    phone = serializers.CharField(required=False)
-
-    def validate_email(self, email):
-        if User.objects.filter(email=email).exists():
-            raise serializers.ValidationError("Email already exists")
-        return email
-
-    def create(self, validated_data):
-        user = User.objects.create_user(
-            email=validated_data["email"],
-            password=validated_data["password"],
-            username=validated_data["username"],
-            phone=validated_data.get("phone"),
-            role="vendor",
-            is_active=False,
-            vendor_approved=False,
-            email_verified=False,
-        )
-
-        raw_otp, otp_obj = create_otp_for_user(user, purpose="vendor_register")
-
-        return user, raw_otp
-    
 
 class AdminUserSerializer(serializers.ModelSerializer):
     """Serializer used for listing user info in admin UI."""

@@ -66,7 +66,9 @@ class CustomLoginView(TokenObtainPairView):
 
     @swagger_auto_schema(
         operation_description="Login with email + password + reCAPTCHA + optional MFA",
-        tags=["Authentication"]
+        tags=["Authentication"],
+        request_body=CustomLoginSerializer,
+        query_serializer=CustomLoginSerializer
     )
 
     def post(self, request, *args, **kwargs):

@@ -13,13 +13,11 @@ SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-please-change")
 
 DEBUG = os.getenv("DEBUG", "False").lower() in ("1", "true", "yes")
 
-raw_hosts = os.getenv("ALLOWED_HOSTS", "") 
-
-if raw_hosts == "*": 
-    ALLOWED_HOSTS = ["*", "."] 
-else: 
-    ALLOWED_HOSTS = [h.strip() for h in raw_hosts.split(",") if h.strip()]
-
+ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    "auth_service",
+]
 
 JWT_PRIVATE_KEY_PATH = os.getenv("JWT_PRIVATE_KEY_PATH", "/app/keys/private.pem") 
 JWT_PUBLIC_KEY_PATH = os.getenv("JWT_PUBLIC_KEY_PATH", "/app/keys/public.pem")
@@ -70,6 +68,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt.token_blacklist",
     "drf_yasg",
     "corsheaders",
+    "django_extensions",
     
     "auth_app",
     "user_app",

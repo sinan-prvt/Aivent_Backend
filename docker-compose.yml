@@ -32,9 +32,6 @@ services:
     networks:
       - aivent-net
 
-  # ===========================
-  # AUTH SERVICE
-  # ===========================
   auth_service:
     build:
       context: ./auth-service
@@ -86,9 +83,6 @@ services:
     networks:
       - aivent-net
 
-  # ===========================
-  # VENDOR SERVICE
-  # ===========================
   vendor_db:
     image: postgres:15
     environment:
@@ -107,6 +101,7 @@ services:
       context: ./vendor-service
     depends_on:
       - vendor_db
+      - rabbitmq
     env_file:
       - ./vendor-service/.env
     volumes:
@@ -120,6 +115,40 @@ services:
         /wait-for-db.sh vendor_db 5432 &&
         python manage.py migrate &&
         python manage.py runserver 0.0.0.0:8000
+      "
+
+
+  vendor_celery_worker:
+    build:
+      context: ./vendor-service
+    command: celery -A vendor_project worker -Q vendor --loglevel=info
+    depends_on:
+      - vendor_service
+      - rabbitmq
+      - redis
+    env_file:
+      - ./vendor-service/.env
+    volumes:
+      - ./auth-service/keys/public.pem:/app/keys/public.pem:ro
+    networks:
+      - aivent-net
+
+
+  vendor_consumer:
+    build:
+      context: ./vendor-service
+    depends_on:
+      - vendor_db
+      - rabbitmq
+    env_file:
+      - ./vendor-service/.env
+    volumes:
+      - ./auth-service/keys/public.pem:/app/keys/public.pem:ro
+    networks:
+      - aivent-net
+    command: >
+      sh -c "
+        python vendor_app/consumers/vendor_events.py
       "
 
 networks:

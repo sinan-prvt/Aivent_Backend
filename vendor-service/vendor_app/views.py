@@ -13,31 +13,57 @@ from rest_framework import permissions
 from .permissions import IsAdmin 
 from django.utils import timezone
 from vendor_app.tasks import send_email_task
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+import logging
+from django.db import transaction
 
-AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://auth_service:8001/api/internal/users/")
-AUTH_SERVICE_INTERNAL_TOKEN = os.getenv("AUTH_SERVICE_INTERNAL_TOKEN", None)
 
+logger = logging.getLogger(__name__)
+
+
+AUTH_SERVICE_URL = os.getenv(
+    "AUTH_SERVICE_URL",
+    "http://auth_service:8000/api/auth/internal/users/"
+)
+AUTH_SERVICE_INTERNAL_TOKEN = os.getenv("AUTH_SERVICE_INTERNAL_TOKEN")
+
+
+@method_decorator(csrf_exempt, name="dispatch")
 class VendorApplyView(APIView):
     permission_classes = [AllowAny]
-     
-    def create(self, request, *args, **kwargs):
-        data = request.data.copy()
+
+    def post(self, request):
         serializer = VendorApplySerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+
+        if not serializer.is_valid():
+            print("SERIALIZER ERRORS:", serializer.errors)
+            return Response(serializer.errors, status=400)
+
         vendor = serializer.save(status="pending")
 
-        raw_otp, otp_obj = create_vendor_otp_for(vendor)
+        raw_otp, _ = create_vendor_otp_for(vendor)
 
         email = request.data.get("email")
         if email:
-            send_email_task.delay(
-                subject="AIVENT OTP Verification",
-                message=f"Your OTP is: {raw_otp}",
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[email],
-            )
-        return Response({"message":"OTP sent to provided email","vendor_id": str(vendor.id)}, status=status.HTTP_201_CREATED)
+            try:
+                send_email_task.delay(
+                    subject="AIVENT OTP Verification",
+                    message=f"Your OTP is: {raw_otp}",
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[email],
+                )
+            except Exception as e:
+                logger.error("Email enqueue failed", exc_info=e)
 
+
+        return Response(
+            {
+                "message": "OTP sent to provided email",
+                "vendor_id": str(vendor.id),
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 class VerifyVendorOTPView(APIView):
     permission_classes = [AllowAny]
@@ -46,41 +72,66 @@ class VerifyVendorOTPView(APIView):
         vendor_id = request.data.get("vendor_id")
         otp = request.data.get("otp")
         email = request.data.get("email")
+
         if not vendor_id or not otp or not email:
-            return Response({"detail":"vendor_id, otp and email required"}, status=400)
+            return Response(
+                {"detail": "vendor_id, otp and email required"},
+                status=400
+            )
 
         vendor = get_object_or_404(VendorProfile, id=vendor_id)
-        otp_obj = VendorApplicationOTP.objects.filter(vendor=vendor, used=False, expires_at__gt=timezone.now()).order_by("-created_at").first()
-        if not otp_obj:
-            return Response({"detail":"OTP expired or not found"}, status=400)
-        if not verify_vendor_otp(otp_obj, otp):
-            return Response({"detail":"Invalid OTP"}, status=400)
 
-        otp_obj.used = True
-        otp_obj.save()
+        otp_obj = VendorApplicationOTP.objects.filter(
+            vendor=vendor,
+            used=False,
+            expires_at__gt=timezone.now()
+        ).order_by("-created_at").first()
+
+        if not otp_obj:
+            return Response({"detail": "OTP expired or not found"}, status=400)
+
+        if not verify_vendor_otp(otp_obj, otp):
+            return Response({"detail": "Invalid OTP"}, status=400)
 
         payload = {
             "email": email,
             "role": "vendor",
-            "email_verified": True,
-            "is_active": False,
-            "vendor_approved": False,
         }
-        headers = {"Content-Type":"application/json"}
-        if AUTH_SERVICE_INTERNAL_TOKEN:
-            headers["Authorization"] = f"Bearer {AUTH_SERVICE_INTERNAL_TOKEN}"
+
+        headers = {
+            "Content-Type": "application/json",
+            "X-Internal-Token": settings.AUTH_SERVICE_INTERNAL_TOKEN,
+        }
+
+        auth_url = f"{settings.AUTH_SERVICE_URL}/api/auth/internal/users/"
 
         try:
-            resp = requests.post(AUTH_SERVICE_URL.rstrip("/") + "/", json=payload, headers=headers, timeout=5)
-            resp.raise_for_status()
+            with transaction.atomic():
+                resp = requests.post(
+                    auth_url,
+                    json=payload,
+                    headers=headers,
+                    timeout=5
+                )
+                resp.raise_for_status()
+
+                otp_obj.used = True
+                otp_obj.save(update_fields=["used"])
+
+                vendor.user_id = resp.json()["id"]
+                vendor.save(update_fields=["user_id"])
+
         except requests.RequestException as e:
-            return Response({"detail":"failed to create user in user-service", "error": str(e)}, status=502)
+            return Response(
+                {"detail": "auth-service failed", "error": str(e)},
+                status=502
+            )
 
-        created = resp.json()
-        vendor.user_id = created.get("id") or created.get("user_id")
-        vendor.save()
+        return Response(
+            {"detail": "Vendor application confirmed. Await admin approval."},
+            status=200
+        )
 
-        return Response({"detail":"Vendor application confirmed. Await admin approval.", "user": created}, status=200)
 
 
 class PendingVendorsView(generics.ListAPIView):

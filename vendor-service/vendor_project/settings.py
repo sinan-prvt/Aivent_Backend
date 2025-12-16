@@ -6,15 +6,27 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv()
 
-
+AUTH_SERVICE_URL = (
+    os.getenv("AUTH_SERVICE_URL", "http://auth_service:8000")
+    .rstrip("/")
+    + "/api/auth/internal/users/"
+)
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "unsafe-default")
 DEBUG = os.getenv("DJANGO_DEBUG", "False").lower() in ("1","true","yes")
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "*").split(",")
+
+raw_hosts = os.getenv("ALLOWED_HOSTS", "*").strip()
+
+if raw_hosts == "*":
+    ALLOWED_HOSTS = ["*"]
+else:
+    ALLOWED_HOSTS = [h.strip() for h in raw_hosts.split(",") if h.strip()]
 
 
 JWT_PUBLIC_KEY_PATH = os.getenv("JWT_PUBLIC_KEY_PATH")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "RS256")
+
+AUTH_SERVICE_INTERNAL_TOKEN = os.getenv("AUTH_SERVICE_INTERNAL_TOKEN")
 
 
 INSTALLED_APPS = [
@@ -132,3 +144,5 @@ EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 
 JWT_SIGNING_KEY = os.getenv("JWT_SIGNING_KEY")
+
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL")
