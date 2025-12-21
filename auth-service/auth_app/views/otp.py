@@ -9,10 +9,10 @@ from django.contrib.auth import get_user_model
 from rest_framework.response import Response
 from rest_framework import status
 from ..utils import create_otp_for_user, verify_otp_entry
-from auth_app.tasks import send_email_task
 from django.conf import settings
 from ..models import OTP
 from django.utils import timezone
+from auth_app.integrations.sqs_email import send_email_via_sqs
 
 
 User = get_user_model()
@@ -40,11 +40,11 @@ class SendOTPView(APIView):
         
         raw_otp, otp_obj = create_otp_for_user(user, purpose)
 
-        send_email_task.delay(
+        send_email_via_sqs(
             subject="AIVENT OTP Verification",
-            message=f"Your OTP is: {raw_otp}",
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[email],
+            to_email=email,
+            template="otp",
+            data={"otp": raw_otp},
         )
 
         return Response({"detail": "OTP sent"}, status=status.HTTP_200_OK)
@@ -84,8 +84,8 @@ class VerifyOTPView(APIView):
         if not verify_otp_entry(otp_obj, otp_value):
             return Response({"detail": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
 
-        otp_obj.used = True
-        otp_obj.save()
+        # otp_obj.used = True
+        # otp_obj.save()
 
         if purpose == "email_verify":
             user.email_verified = True
@@ -120,11 +120,11 @@ class SendResetOTPView(APIView):
 
         raw_otp, otp_obj = create_otp_for_user(user, "reset_password")
 
-        send_email_task.delay(
-            subject="AIVENT Password Reset OTP",
-            message=f"Your OTP is: {raw_otp}",
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[email],
+        send_email_via_sqs(
+            subject="AIVENT OTP Verification",
+            to_email=user.email,
+            template="otp",
+            data={"otp": raw_otp},
         )
         
         return Response({"detail": "Reset OTP sent"}, status=status.HTTP_200_OK)

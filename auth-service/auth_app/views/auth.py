@@ -20,13 +20,13 @@ from auth_app.core.recaptcha import verify_recaptcha
 from rest_framework.response import Response
 from django.conf import settings
 from rest_framework.views import APIView
-from auth_app.tasks import send_email_task
 from ..utils import create_otp_for_user
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
 from django.conf import settings
 import logging
 import pyotp
+from auth_app.integrations.sqs_email import send_email_via_sqs
 
 User = get_user_model()
 
@@ -170,11 +170,11 @@ class RegisterView(APIView):
 
         raw_otp, otp_obj = create_otp_for_user(user, "email_verify")
 
-        send_email_task.delay(
-            subject="AIVENT Email Verification OTP",
-            message=f"Your OTP is: {raw_otp}",
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
+        send_email_via_sqs(
+            subject="AIVENT OTP Verification",
+            to_email=user.email,
+            template="otp",
+            data={"otp": raw_otp},
         )
 
         return Response(

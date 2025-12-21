@@ -16,3 +16,4 @@ django-celery-results
 django-cors-headers
 pyotp
 django-extensions
+boto3
