@@ -17,16 +17,11 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 import logging
 from django.db import transaction
+from rest_framework.throttling import AnonRateThrottle
 
 
 logger = logging.getLogger(__name__)
 
-
-AUTH_SERVICE_URL = os.getenv(
-    "AUTH_SERVICE_URL",
-    "http://auth_service:8000/api/auth/internal/users/"
-)
-AUTH_SERVICE_INTERNAL_TOKEN = os.getenv("AUTH_SERVICE_INTERNAL_TOKEN")
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -40,7 +35,7 @@ class VendorApplyView(APIView):
             print("SERIALIZER ERRORS:", serializer.errors)
             return Response(serializer.errors, status=400)
 
-        vendor = serializer.save(status="pending")
+        vendor = serializer.save()
 
         raw_otp, _ = create_vendor_otp_for(vendor)
 
@@ -53,8 +48,8 @@ class VendorApplyView(APIView):
                     from_email=settings.DEFAULT_FROM_EMAIL,
                     recipient_list=[email],
                 )
-            except Exception as e:
-                logger.error("Email enqueue failed", exc_info=e)
+            except Exception:
+                return Response({"detail": "Failed to send OTP email"}, status=500)
 
 
         return Response(
@@ -67,6 +62,7 @@ class VendorApplyView(APIView):
 
 class VerifyVendorOTPView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [AnonRateThrottle]
 
     def post(self, request):
         vendor_id = request.data.get("vendor_id")
@@ -90,6 +86,9 @@ class VerifyVendorOTPView(APIView):
         if not otp_obj:
             return Response({"detail": "OTP expired or not found"}, status=400)
 
+        if vendor.email != email:
+            return Response({"detail": "Email mismatch"}, status=400)
+
         if not verify_vendor_otp(otp_obj, otp):
             return Response({"detail": "Invalid OTP"}, status=400)
 
@@ -101,22 +100,21 @@ class VerifyVendorOTPView(APIView):
         headers = {
             "Content-Type": "application/json",
             "X-Internal-Token": settings.AUTH_SERVICE_INTERNAL_TOKEN,
+            "Host": "auth-service",
         }
 
-        auth_url = f"{settings.AUTH_SERVICE_URL}/api/auth/internal/users/"
+        auth_url = f"{settings.AUTH_SERVICE_INTERNAL_URL}/api/auth/internal/users/"
 
         try:
             with transaction.atomic():
-                resp = requests.post(
-                    auth_url,
-                    json=payload,
-                    headers=headers,
-                    timeout=5
-                )
-                resp.raise_for_status()
+                resp = requests.post(auth_url, json=payload, headers=headers, timeout=5)
+                if resp.status_code == 409:
+                    return Response(
+                        {"detail": "Vendor user already exists"},
+                        status=400
+                    )
 
-                otp_obj.used = True
-                otp_obj.save(update_fields=["used"])
+                resp.raise_for_status()
 
                 vendor.user_id = resp.json()["id"]
                 vendor.save(update_fields=["user_id"])
@@ -136,7 +134,7 @@ class VerifyVendorOTPView(APIView):
 
 class PendingVendorsView(generics.ListAPIView):
     serializer_class = VendorProfileSerializer
-    # permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAuthenticated, IsAdmin]
 
     def get_queryset(self):
         return VendorProfile.objects.filter(status="pending")

@@ -1,6 +1,5 @@
 from rest_framework import serializers 
 from user_app.models import UserProfile 
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from auth_app.models import User
 
 
@@ -54,18 +53,3 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
         return super().update(instance, validated_data)
 
-
-
-class CustomTokenObtainPairSerializer(TokenObtainPairSerializer): 
-    @classmethod 
-    def get_token(cls, user): 
-        token = super().get_token(user)
-
-        token["id"] = str(user.id) 
-        token["email"] = user.email 
-        token["username"] = user.username 
-        token["role"] = user.role 
-        token["phone"] = user.phone 
-        token["vendor_approved"] = user.vendor_approved
-
-        return token

@@ -5,7 +5,6 @@ from .models import VendorProfile
 
 class VendorApplySerializer(serializers.ModelSerializer):
     email = serializers.EmailField(write_only=True)
-    documents = serializers.ListField(required=False)
 
     class Meta:
         model = VendorProfile
@@ -25,11 +24,13 @@ class VendorApplySerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ("id", "status", "created_at", "updated_at")
 
-
     def create(self, validated_data):
-        # email is NOT part of VendorProfile → remove it
-        validated_data.pop("email")
-        return VendorProfile.objects.create(**validated_data)
+        email = validated_data.pop("email")
+        vendor = VendorProfile.objects.create(**validated_data)
+        vendor.email = email
+        vendor.save(update_fields=["email"])
+        return vendor
+
 
 
 class VendorProfileSerializer(serializers.ModelSerializer):

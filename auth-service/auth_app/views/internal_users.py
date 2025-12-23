@@ -8,7 +8,7 @@ import os
 import secrets
 
 User = get_user_model()
-INTERNAL_TOKEN = os.getenv("INTERNAL_TOKEN")
+INTERNAL_TOKEN = os.getenv("AUTH_SERVICE_INTERNAL_TOKEN")
 
 class InternalUserCreateView(APIView):
     def post(self, request):

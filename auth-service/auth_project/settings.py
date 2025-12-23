@@ -19,6 +19,8 @@ ALLOWED_HOSTS = [
     "auth_service",
 ]
 
+
+
 JWT_PRIVATE_KEY_PATH = os.getenv("JWT_PRIVATE_KEY_PATH", "/app/keys/private.pem") 
 JWT_PUBLIC_KEY_PATH = os.getenv("JWT_PUBLIC_KEY_PATH", "/app/keys/public.pem")
 
@@ -159,7 +161,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 REST_FRAMEWORK = { 
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication", 
-    ] 
+    ],
+    "EXCEPTION_HANDLER": "auth_app.core.exceptions.custom_exception_handler",
 }
 
 REDIS_HOST = os.getenv("REDIS_HOST", "redis")
