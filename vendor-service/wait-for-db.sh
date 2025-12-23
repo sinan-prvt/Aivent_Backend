@@ -1,18 +1,16 @@
-HOST=${1:-vendor_db}
-PORT=${2:-5432}
+#!/bin/sh
+set -e
 
-echo "Waiting for PostgreSQL at ${HOST}:${PORT} ..."
+HOST="$1"
+PORT="$2"
+shift 2
 
-if command -v nc >/dev/null 2>&1; then
-  while ! nc -z ${HOST} ${PORT}; do
-    echo "Postgres not ready yet..."
-    sleep 1
-  done
-else
-  while ! (echo > /dev/tcp/${HOST}/${PORT}) 2>/dev/null; do
-    echo "Postgres not ready yet..."
-    sleep 1
-  done
-fi
+echo "Waiting for PostgreSQL at $HOST:$PORT ..."
 
-echo "Postgres at ${HOST}:${PORT} is available"
+until nc -z "$HOST" "$PORT"; do
+  echo "Postgres not ready yet..."
+  sleep 2
+done
+
+echo "Postgres is up."
+exec "$@"

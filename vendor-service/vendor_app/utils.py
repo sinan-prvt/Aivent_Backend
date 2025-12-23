@@ -24,4 +24,6 @@ def create_vendor_otp_for(vendor, expiry_seconds=600):
     return otp, otp_obj
 
 def verify_vendor_otp(otp_obj, otp):
-    return make_otp_hash(otp, otp_obj.salt) == otp_obj.otp_hash
+    if make_otp_hash(otp, otp_obj.salt) != otp_obj.otp_hash:
+        return False
+    return True

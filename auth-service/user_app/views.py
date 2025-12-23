@@ -8,7 +8,6 @@ from rest_framework import permissions
 from rest_framework.parsers import MultiPartParser, FormParser 
 from user_app.models import UserProfile 
 from rest_framework_simplejwt.views import TokenObtainPairView 
-from .serializers import CustomTokenObtainPairSerializer 
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
@@ -38,9 +37,6 @@ class ProfileView(APIView):
 
 
 
-class CustomTokenObtainPairView(TokenObtainPairView): 
-    serializer_class = CustomTokenObtainPairSerializer 
-    
 
 class VendorDashboardView(APIView): 
     permission_classes = [IsVendor] 

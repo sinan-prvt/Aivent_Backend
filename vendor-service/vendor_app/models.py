@@ -9,9 +9,10 @@ class VendorProfile(models.Model):
         ("rejected","Rejected"),
         ("suspended","Suspended"),
     ]
+    email = models.EmailField(db_index=True)
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user_id = models.UUIDField(null=True, blank=True)
-    business_name = models.CharField(max_length=255)
+    user_id = models.UUIDField(unique=True, null=True, blank=True)
+    business_name = models.CharField(max_length=255, blank=True, null=True)
     category_id = models.IntegerField(null=True, blank=True)
     subcategory_ids = models.JSONField(default=list, blank=True)
     phone = models.CharField(max_length=20, blank=True, null=True)

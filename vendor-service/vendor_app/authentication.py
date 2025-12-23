@@ -49,10 +49,13 @@ class RemoteJWTAuthentication(BaseAuthentication):
             raise AuthenticationFailed("Invalid or expired token")
 
         user = SimpleNamespace(
-            id=decoded.get("id"),
+            id=decoded.get("user_id") or decoded.get("id"),
             email=decoded.get("email"),
             role=decoded.get("role"),
-            is_authenticated=True, 
+            is_authenticated=True,
+            is_active=True,
+            is_staff=(decoded.get("role") == "admin"),
+            is_superuser=False,
         )
 
         logger.info(f"AUTH USER: {user}")
