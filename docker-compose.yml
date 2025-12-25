@@ -32,7 +32,7 @@ services:
     networks:
       - aivent-net
 
-  auth_service:
+  auth-service:
     build:
       context: ./auth-service
       dockerfile: Dockerfile
@@ -52,8 +52,8 @@ services:
       - aivent-net
     command: >
       sh -c "
-        /wait-for-db.sh auth_db 5432 &&
-        python manage.py migrate &&
+        /wait-for-db.sh auth_db 5432;
+        python manage.py migrate;
         python manage.py runserver 0.0.0.0:8000
       "
 
@@ -62,7 +62,7 @@ services:
       context: ./auth-service
     command: celery -A auth_project worker --loglevel=info --concurrency=2
     depends_on:
-      - auth_service
+      - auth-service
       - rabbitmq
       - redis
     env_file:
@@ -75,7 +75,7 @@ services:
       context: ./auth-service
     command: celery -A auth_project beat --loglevel=info
     depends_on:
-      - auth_service
+      - auth-service
       - rabbitmq
       - redis
     env_file:
@@ -96,7 +96,7 @@ services:
     networks:
       - aivent-net
 
-  vendor_service:
+  vendor-service:
     build:
       context: ./vendor-service
     depends_on:
@@ -112,9 +112,9 @@ services:
       - aivent-net
     command: >
       sh -c "
-        /wait-for-db.sh vendor_db 5432 &&
-        python manage.py migrate &&
-        python manage.py runserver 0.0.0.0:8000
+        /wait-for-db.sh vendor_db 5432;
+        python manage.py migrate;
+        python manage.py runserver 0.0.0.0:8000 --noreload
       "
 
 
@@ -123,7 +123,7 @@ services:
       context: ./vendor-service
     command: celery -A vendor_project worker -Q vendor --loglevel=info
     depends_on:
-      - vendor_service
+      - vendor-service
       - rabbitmq
       - redis
     env_file:

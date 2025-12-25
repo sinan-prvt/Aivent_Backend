@@ -1,14 +1,15 @@
 from django.urls import path
 from .views import (
     VendorApplyView,
-    VerifyVendorOTPView,
     PendingVendorsView,
+    VendorConfirmView,
+    InternalVendorApproveView,
 )
 
 urlpatterns = [
     path("apply/", VendorApplyView.as_view(), name="vendor-apply"),
-    path("verify-otp/", VerifyVendorOTPView.as_view(), name="vendor-verify-otp"),
+    path("confirm/", VendorConfirmView.as_view(), name="vendor-confirm"),
 
-    # Admin routes
     path("admin/vendors/pending/", PendingVendorsView.as_view(), name="pending-vendors"),
+    path("internal/vendors/approve/", InternalVendorApproveView.as_view(), name="internal-vendor-approve",),
 ]

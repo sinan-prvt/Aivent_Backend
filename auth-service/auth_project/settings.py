@@ -14,11 +14,8 @@ SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-please-change")
 DEBUG = os.getenv("DEBUG", "False").lower() in ("1", "true", "yes")
 
 ALLOWED_HOSTS = [
-    "localhost",
-    "127.0.0.1",
-    "auth_service",
+    "*"
 ]
-
 
 
 JWT_PRIVATE_KEY_PATH = os.getenv("JWT_PRIVATE_KEY_PATH", "/app/keys/private.pem") 

@@ -10,6 +10,8 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework import serializers
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
+from django.conf import settings
+import requests
 
 User = get_user_model()
 
@@ -80,30 +82,73 @@ class AdminApproveVendorView(APIView):
         try:
             user = User.objects.get(id=user_id, role="vendor")
         except User.DoesNotExist:
-            return Response({"detail": "Vendor not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Vendor not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
         action = request.data.get("action", "approve")
+
         if action == "approve":
+            # 1️⃣ Update auth-service DB
             user.vendor_approved = True
-            user.save(update_fields=["vendor_approved"])
-            # optionally publish event -- reuse your publish_event_task
-            return Response({"detail": "Vendor approved"}, status=status.HTTP_200_OK)
+            user.is_active = True
+            user.save(update_fields=["vendor_approved", "is_active"])
+
+            # 2️⃣ Notify vendor-service
+            try:
+                resp = requests.patch(
+                    f"{settings.VENDOR_SERVICE_URL}/internal/vendors/approve/",
+                    json={"user_id": str(user.id)},
+                    headers={
+                        "X-Internal-Token": settings.AUTH_SERVICE_INTERNAL_TOKEN
+                    },
+                    timeout=5,
+                )
+                if resp.status_code != 200:
+                    return Response(
+                        {
+                            "detail": "Vendor approved in auth-service, "
+                                      "but vendor-service update failed",
+                            "vendor_service_response": resp.text,
+                        },
+                        status=500,
+                    )
+            except Exception as e:
+                return Response(
+                    {
+                        "detail": "Vendor approved in auth-service, "
+                                  "but vendor-service unreachable",
+                        "error": str(e),
+                    },
+                    status=500,
+                )
+
+            return Response(
+                {"detail": "Vendor approved successfully"},
+                status=status.HTTP_200_OK
+            )
+
         elif action == "reject":
             user.vendor_approved = False
             user.is_active = False
             user.save(update_fields=["vendor_approved", "is_active"])
-            return Response({"detail": "Vendor rejected and deactivated"}, status=status.HTTP_200_OK)
-        else:
-            return Response({"detail": "unknown action"}, status=status.HTTP_400_BAD_REQUEST)
+
+            return Response(
+                {"detail": "Vendor rejected and deactivated"},
+                status=status.HTTP_200_OK
+            )
+
+        return Response(
+            {"detail": "Unknown action"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
 
 class AdminRevokeTokensView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
 
     def post(self, request, user_id):
-        """
-        Blacklist all outstanding refresh tokens for a user.
-        """
         try:
             user = User.objects.get(id=user_id)
         except User.DoesNotExist:
