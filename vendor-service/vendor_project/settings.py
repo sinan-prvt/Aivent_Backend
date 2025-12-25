@@ -8,9 +8,10 @@ load_dotenv()
 
 AUTH_SERVICE_INTERNAL_URL = os.getenv(
     "AUTH_SERVICE_INTERNAL_URL",
-    "http://auth_service:8000"
+    "http://auth-service:8000"
 )
 
+AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://auth-service:8000").rstrip("/")
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "unsafe-default")
 
@@ -19,7 +20,7 @@ DEBUG = os.getenv("DJANGO_DEBUG", "False").lower() in ("1","true","yes")
 ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
-    "auth_service",
+    "auth-service",
 ]
 
 JWT_PUBLIC_KEY_PATH = os.getenv("JWT_PUBLIC_KEY_PATH")

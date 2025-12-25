@@ -18,18 +18,11 @@ class VendorApplySerializer(serializers.ModelSerializer):
             "gst_number",
             "documents",
             "email",
-            "status",
-            "created_at",
-            "updated_at",
         ]
-        read_only_fields = ("id", "status", "created_at", "updated_at")
+        read_only_fields = ("id",)
 
     def create(self, validated_data):
-        email = validated_data.pop("email")
-        vendor = VendorProfile.objects.create(**validated_data)
-        vendor.email = email
-        vendor.save(update_fields=["email"])
-        return vendor
+        return VendorProfile.objects.create(**validated_data)
 
 
 

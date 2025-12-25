@@ -25,7 +25,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 
 
-class CustomLoginSerializer(TokenObtainPairSerializer):
+class CustomLoginSerializer(CustomTokenObtainPairSerializer):
     username_field = "email"
 
     def validate(self, attrs):
@@ -43,13 +43,13 @@ class CustomLoginSerializer(TokenObtainPairSerializer):
             raise serializers.ValidationError({
                 "email": ["Please verify email first."]
             })
-        
+
         self._validated_user = user
 
-        if user.role == "vendor":
-            if not user.vendor_approved:
-                raise serializers.ValidationError({"vendor": ["Vendor not approved by admin yet."]})
-
+        if user.role == "vendor" and not user.vendor_approved:
+            raise serializers.ValidationError({
+                "vendor": ["Vendor not approved by admin yet."]
+            })
 
         attrs["username"] = email
         data = super().validate(attrs)
@@ -61,6 +61,7 @@ class CustomLoginSerializer(TokenObtainPairSerializer):
         }
 
         return data
+
 
 
 class RegisterSerializer(serializers.ModelSerializer):

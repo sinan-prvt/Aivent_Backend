@@ -26,8 +26,11 @@ class InternalUserCreateView(APIView):
 
         password = secrets.token_urlsafe(12)
 
+        username = email.split("@")[0]
+
         user = User.objects.create_user(
             email=email,
+            username=username,
             password=password,
             role=role,
             is_active=False,
@@ -43,3 +46,24 @@ class InternalUserCreateView(APIView):
             },
             status=201
         )
+
+
+class InternalUserByEmail(APIView):
+    def get(self, request):
+        if request.headers.get("X-Internal-Token") != INTERNAL_TOKEN:
+            return Response({"detail": "Forbidden"}, status=403)
+
+        email = request.query_params.get("email")
+        if not email:
+            return Response({"detail": "email required"}, status=400)
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({"detail": "User not found"}, status=404)
+
+        return Response({
+            "id": str(user.id),
+            "email": user.email,
+            "role": user.role
+        })
