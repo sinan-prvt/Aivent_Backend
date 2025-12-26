@@ -27,6 +27,11 @@ from django.conf import settings
 import logging
 import pyotp
 from auth_app.integrations.sqs_email import send_email_via_sqs
+from auth_app.models import MFAChallenge
+from django.utils import timezone
+from datetime import timedelta
+import secrets
+
 
 User = get_user_model()
 
@@ -111,34 +116,52 @@ class CustomLoginView(TokenObtainPairView):
         if not user:
             return Response({"detail":"Invalid Credentials"}, status=status.HTTP_400_BAD_REQUEST)
         
-        if getattr(user, "role", "") == "vendor" and not getattr(user, "vendor_approved", False):
-            return Response({"detail":"Vendor approval pending"}, status=status.HTTP_403_FORBIDDEN)
-        
-        if getattr(user, "role", "") == "vendor":
+
+        if user.role == "vendor":
+
+            if not user.vendor_approved:
+                return Response(
+                    {"detail": "Vendor approval pending"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            # FIRST TIME MFA SETUP
             if not user.totp_secret:
                 secret = pyotp.random_base32()
                 user.totp_secret = secret
                 user.totp_enabled = False
                 user.save(update_fields=["totp_secret", "totp_enabled"])
 
-                
                 issuer = getattr(settings, "TOTP_ISSUER", "AIVENT")
-                otpauth_url = pyotp.TOTP(secret).provisioning_uri(name=user.email, issuer_name=issuer)
+                otpauth_url = pyotp.TOTP(secret).provisioning_uri(
+                    name=user.email,
+                    issuer_name=issuer
+                )
                 qr_code = qrcode_base64_from_uri(otpauth_url)
 
                 return Response({
                     "mfa_required": True,
                     "mfa_setup": True,
+                    "role": "vendor",
                     "otpauth_url": otpauth_url,
                     "qr_code": qr_code,
-                    "message": "Scan the QR code with an authenticator app and then POST code to /auth/verify-mfa/"
-                }, status=status.HTTP_200_OK)
-            
+                }, status=200)
+
+            # MFA VERIFY STEP
+            challenge = MFAChallenge.objects.create(
+                user=user,
+                token=secrets.token_urlsafe(32),
+                expires_at=timezone.now() + timedelta(minutes=5)
+            )
+
             return Response({
                 "mfa_required": True,
                 "mfa_setup": False,
-                "message": "Provide TOTP to /auth/verify-mfa/ to complete login"
-            }, status=status.HTTP_200_OK)
+                "role": "vendor",
+                "mfa_token": challenge.token,
+                "expires_in": 300
+            }, status=200)
+
         
         tokens_resp = super().post(request, *args, **kwargs)
         return Response({
