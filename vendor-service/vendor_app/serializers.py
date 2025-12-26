@@ -4,12 +4,11 @@ from rest_framework import serializers
 from .models import VendorProfile
 
 class VendorApplySerializer(serializers.ModelSerializer):
-    email = serializers.EmailField(write_only=True)
-
     class Meta:
         model = VendorProfile
         fields = [
             "id",
+            "email",
             "business_name",
             "category_id",
             "subcategory_ids",
@@ -17,15 +16,17 @@ class VendorApplySerializer(serializers.ModelSerializer):
             "address",
             "gst_number",
             "documents",
-            "email",
         ]
         read_only_fields = ("id",)
 
-    def create(self, validated_data):
-        return VendorProfile.objects.create(**validated_data)
 
 
+class VendorConfirmSerializer(serializers.Serializer):
+    vendor_id = serializers.UUIDField()
+    email = serializers.EmailField()
+    otp = serializers.CharField()
 
+    
 class VendorProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = VendorProfile

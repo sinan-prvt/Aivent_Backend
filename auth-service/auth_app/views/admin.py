@@ -74,75 +74,44 @@ class AdminUserDetailView(APIView):
         user.save(update_fields=["is_active"])
         return Response({"detail": "User deactivated"}, status=status.HTTP_200_OK)
 
-
 class AdminApproveVendorView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
 
     def patch(self, request, user_id):
-        try:
-            user = User.objects.get(id=user_id, role="vendor")
-        except User.DoesNotExist:
-            return Response(
-                {"detail": "Vendor not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
+        user = User.objects.filter(id=user_id, role="vendor").first()
+        if not user:
+            return Response({"detail": "Vendor not found"}, status=404)
 
         action = request.data.get("action", "approve")
 
-        if action == "approve":
-            # 1️⃣ Update auth-service DB
-            user.vendor_approved = True
-            user.is_active = True
-            user.save(update_fields=["vendor_approved", "is_active"])
+        if action != "approve":
+            return Response({"detail": "Only approve supported"}, status=400)
 
-            # 2️⃣ Notify vendor-service
-            try:
-                resp = requests.patch(
-                    f"{settings.VENDOR_SERVICE_URL}/internal/vendors/approve/",
-                    json={"user_id": str(user.id)},
-                    headers={
-                        "X-Internal-Token": settings.AUTH_SERVICE_INTERNAL_TOKEN
-                    },
-                    timeout=5,
-                )
-                if resp.status_code != 200:
-                    return Response(
-                        {
-                            "detail": "Vendor approved in auth-service, "
-                                      "but vendor-service update failed",
-                            "vendor_service_response": resp.text,
-                        },
-                        status=500,
-                    )
-            except Exception as e:
-                return Response(
-                    {
-                        "detail": "Vendor approved in auth-service, "
-                                  "but vendor-service unreachable",
-                        "error": str(e),
-                    },
-                    status=500,
-                )
+        # 1️⃣ Update AUTH DB
+        user.vendor_approved = True
+        user.is_active = True
+        user.save(update_fields=["vendor_approved", "is_active"])
 
-            return Response(
-                {"detail": "Vendor approved successfully"},
-                status=status.HTTP_200_OK
-            )
-
-        elif action == "reject":
-            user.vendor_approved = False
-            user.is_active = False
-            user.save(update_fields=["vendor_approved", "is_active"])
-
-            return Response(
-                {"detail": "Vendor rejected and deactivated"},
-                status=status.HTTP_200_OK
-            )
-
-        return Response(
-            {"detail": "Unknown action"},
-            status=status.HTTP_400_BAD_REQUEST
+        # 2️⃣ Notify VENDOR SERVICE
+        resp = requests.patch(
+            f"{settings.VENDOR_SERVICE_URL}/api/vendors/internal/vendors/approve/",
+            json={"user_id": str(user.id)},
+            headers={
+                "X-Internal-Token": settings.AUTH_SERVICE_INTERNAL_TOKEN
+            },
+            timeout=5,
         )
+
+        if resp.status_code != 200:
+            return Response(
+                {
+                    "detail": "Auth approved, vendor-service failed",
+                    "vendor_service_response": resp.text,
+                },
+                status=500,
+            )
+
+        return Response({"detail": "Vendor approved successfully"}, status=200)
 
 
 class AdminRevokeTokensView(APIView):

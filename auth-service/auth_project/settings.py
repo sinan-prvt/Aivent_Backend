@@ -17,6 +17,12 @@ ALLOWED_HOSTS = [
     "*"
 ]
 
+AUTH_SERVICE_INTERNAL_TOKEN = os.getenv("AUTH_SERVICE_INTERNAL_TOKEN")
+
+VENDOR_SERVICE_URL = os.getenv(
+    "VENDOR_SERVICE_URL",
+    "http://vendor-service:8000"
+)
 
 JWT_PRIVATE_KEY_PATH = os.getenv("JWT_PRIVATE_KEY_PATH", "/app/keys/private.pem") 
 JWT_PUBLIC_KEY_PATH = os.getenv("JWT_PUBLIC_KEY_PATH", "/app/keys/public.pem")

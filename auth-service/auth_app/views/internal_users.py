@@ -40,7 +40,7 @@ class InternalUserCreateView(APIView):
 
         return Response(
             {
-                "id": user.id,
+                "id": str(user.id),
                 "email": user.email,
                 "temp_password": password,
             },

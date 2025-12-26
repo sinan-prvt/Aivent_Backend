@@ -5,13 +5,14 @@ from rest_framework import generics
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from .models import VendorProfile
-from .serializers import VendorApplySerializer, VendorProfileSerializer
+from .serializers import VendorApplySerializer, VendorProfileSerializer, VendorConfirmSerializer
 from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
 from vendor_app.permissions import IsAdmin 
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 import logging
+from django.db import transaction
 
 
 logger = logging.getLogger(__name__)
@@ -25,13 +26,13 @@ auth_url = f"{auth_base}/internal/users/"
 class VendorApplyView(APIView):
     permission_classes = [AllowAny]
 
+    @transaction.atomic
     def post(self, request):
         serializer = VendorApplySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        email = request.data.get("email")
+        email = serializer.validated_data["email"]
 
-        # 🔒 BLOCK duplicate pending applications
         existing = VendorProfile.objects.filter(
             email=email,
             status="pending"
@@ -46,107 +47,81 @@ class VendorApplyView(APIView):
                 status=409,
             )
 
-        serializer = VendorApplySerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        vendor = serializer.save()
+        vendor = serializer.save(status="pending")
 
-
-        # STEP 1 — CREATE USER IN AUTH-SERVICE
+        # create user in auth-service
         user_resp = requests.post(
             f"{settings.AUTH_SERVICE_URL}/internal/users/",
-            json={
-                "email": email,
-                "role": "vendor"
-            },
-            headers={
-                "X-Internal-Token": settings.AUTH_SERVICE_INTERNAL_TOKEN
-            },
-            timeout=5
+            json={"email": email, "role": "vendor"},
+            headers={"X-Internal-Token": settings.AUTH_SERVICE_INTERNAL_TOKEN},
+            timeout=5,
         )
 
         if user_resp.status_code not in (200, 201, 409):
-            return Response(
-                {"detail": "Failed to create auth user"},
-                status=500
-            )
+            raise RuntimeError("Auth service user creation failed")
 
-        # STEP 2 — SEND OTP (VALID PURPOSE)
+        # send OTP
         requests.post(
             f"{settings.AUTH_SERVICE_URL}/send-otp/",
-            json={
-                "email": email,
-                "purpose": "email_verify"
-            },
-            timeout=5
+            json={"email": email, "purpose": "email_verify"},
+            timeout=5,
         )
 
         return Response(
             {
                 "message": "OTP sent via auth-service",
-                "vendor_id": str(vendor.id)
+                "vendor_id": str(vendor.id),
             },
-            status=201
+            status=201,
         )
-
 
 
 class VendorConfirmView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        vendor_id = request.data.get("vendor_id")
-        email = request.data.get("email")
-        otp = request.data.get("otp")
+        serializer = VendorConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-        if not vendor_id or not email or not otp:
-            return Response(
-                {"detail": "vendor_id, email, and otp are required"},
-                status=400
-            )
+        vendor_id = serializer.validated_data["vendor_id"]
+        email = serializer.validated_data["email"]
+        otp = serializer.validated_data["otp"]
 
-        vendor = get_object_or_404(VendorProfile, id=vendor_id)
+        vendor = get_object_or_404(
+            VendorProfile,
+            id=vendor_id,
+            email=email,
+            status="pending"
+        )
 
-        # STEP 1 — VERIFY OTP
         otp_resp = requests.post(
             f"{settings.AUTH_SERVICE_URL}/verify-otp/",
-            json={
-                "email": email,
-                "otp": otp,
-                "purpose": "email_verify"
-            },
-            timeout=5
+            json={"email": email, "otp": otp, "purpose": "email_verify"},
+            timeout=5,
         )
 
         if otp_resp.status_code != 200:
-            return Response(
-                {"detail": "Invalid or expired OTP"},
-                status=400
-            )
+            return Response({"detail": "Invalid or expired OTP"}, status=400)
 
-        # STEP 2 — FETCH USER BY EMAIL (INTERNAL)
+        if vendor.user_id:
+            return Response({"detail": "Vendor already confirmed"}, status=409)
+
         user_resp = requests.get(
             f"{settings.AUTH_SERVICE_URL}/internal/users/by-email/",
             params={"email": email},
-            headers={
-                "X-Internal-Token": settings.AUTH_SERVICE_INTERNAL_TOKEN
-            },
-            timeout=5
+            headers={"X-Internal-Token": settings.AUTH_SERVICE_INTERNAL_TOKEN},
+            timeout=5,
         )
 
         if user_resp.status_code != 200:
-            return Response(
-                {"detail": "Auth user not found"},
-                status=500
+            return Response({"detail": "Auth user not found"}, status=500)
 
-            )
-
-        # STEP 3 — LINK VENDOR PROFILE
         vendor.user_id = user_resp.json()["id"]
         vendor.save(update_fields=["user_id"])
 
         return Response(
-            {"detail": "Vendor registered. Await admin approval."},
-            status=200
+            {"detail": "Vendor confirmed. Await admin approval."},
+            status=200,
         )
 
 
@@ -157,7 +132,6 @@ class PendingVendorsView(generics.ListAPIView):
     def get_queryset(self):
         return VendorProfile.objects.filter(status="pending")
 
-
 class InternalVendorApproveView(APIView):
     def patch(self, request):
         if request.headers.get("X-Internal-Token") != settings.AUTH_SERVICE_INTERNAL_TOKEN:
@@ -167,12 +141,15 @@ class InternalVendorApproveView(APIView):
         if not user_id:
             return Response({"detail": "user_id required"}, status=400)
 
-        updated = VendorProfile.objects.filter(
-            user_id=str(user_id),
+        vendor = VendorProfile.objects.filter(
+            user_id=user_id,
             status="pending"
-        ).update(status="approved")
+        ).first()
 
-        if updated == 0:
-            return Response({"detail": "Vendor not found"}, status=404)
+        if not vendor:
+            return Response({"detail": "Vendor profile not found"}, status=404)
 
-        return Response({"detail": "Vendor approved"}, status=200)
+        vendor.status = "approved"
+        vendor.save(update_fields=["status"])
+
+        return Response({"detail": "Vendor profile approved"}, status=200)
