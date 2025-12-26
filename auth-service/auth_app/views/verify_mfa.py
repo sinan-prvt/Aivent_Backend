@@ -5,47 +5,58 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
+from auth_app.models import MFAChallenge
+from django.utils import timezone
 
 User = get_user_model()
 
 class VerifyMFAView(APIView):
-    permission_classes = [AllowAny]   # we authenticate by email+password earlier; we require email + password + code or the login step should have validated credentials
+    permission_classes = [AllowAny]
 
     def post(self, request):
-        """
-        Accepts: { "email": "...", "code": "123456" }
-        On success -> returns access + refresh tokens
-        """
-        email = request.data.get("email")
+        token = request.data.get("mfa_token")
         code = request.data.get("code")
 
-        if not email or not code:
-            return Response({"detail":"email and code required"}, status=status.HTTP_400_BAD_REQUEST)
+        if not token or not code:
+            return Response(
+                {"detail": "mfa_token and code required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
-            return Response({"detail":"User not found"}, status=status.HTTP_404_NOT_FOUND)
+        challenge = MFAChallenge.objects.select_related("user").filter(
+            token=token,
+            verified=False,
+            expires_at__gt=timezone.now()
+        ).first()
 
-        if user.role != "vendor":
-            return Response({"detail":"MFA only required for vendors"}, status=status.HTTP_400_BAD_REQUEST)
+        if not challenge:
+            return Response(
+                {"detail": "Invalid or expired MFA challenge"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        if not user.totp_secret:
-            return Response({"detail":"TOTP not configured"}, status=status.HTTP_400_BAD_REQUEST)
+        user = challenge.user
 
         totp = pyotp.TOTP(user.totp_secret)
         if not totp.verify(code, valid_window=1):
-            return Response({"detail":"Invalid TOTP code"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Invalid MFA code"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        challenge.verified = True
+        challenge.save(update_fields=["verified"])
 
         if not user.totp_enabled:
             user.totp_enabled = True
             user.save(update_fields=["totp_enabled"])
 
         refresh = RefreshToken.for_user(user)
-        access = str(refresh.access_token)
-        refresh_token = str(refresh)
+        refresh["role"] = user.role
+        refresh["mfa"] = True
 
         return Response({
-            "access": access,
-            "refresh": refresh_token
-        }, status=status.HTTP_200_OK)
+            "access": str(refresh.access_token),
+            "refresh": str(refresh)
+        })
+

@@ -24,14 +24,18 @@ class InternalUserCreateView(APIView):
         if User.objects.filter(email=email).exists():
             return Response({"detail": "User already exists"}, status=409)
 
-        password = secrets.token_urlsafe(12)
+        password = request.data.get("password")
+
+        if not password:
+            return Response({"detail": "password required"}, status=400)
+
 
         username = email.split("@")[0]
 
         user = User.objects.create_user(
             email=email,
-            username=username,
             password=password,
+            username=username,
             role=role,
             is_active=False,
             email_verified=True,

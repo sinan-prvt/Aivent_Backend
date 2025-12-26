@@ -31,6 +31,7 @@ class VendorApplyView(APIView):
         serializer = VendorApplySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        password = serializer.validated_data.pop("password")
         email = serializer.validated_data["email"]
 
         existing = VendorProfile.objects.filter(
@@ -52,7 +53,7 @@ class VendorApplyView(APIView):
         # create user in auth-service
         user_resp = requests.post(
             f"{settings.AUTH_SERVICE_URL}/internal/users/",
-            json={"email": email, "role": "vendor"},
+            json={"email": email, "password": password, "role": "vendor"},
             headers={"X-Internal-Token": settings.AUTH_SERVICE_INTERNAL_TOKEN},
             timeout=5,
         )

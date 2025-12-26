@@ -72,3 +72,9 @@ class OTP(models.Model):
     expires_at = models.DateTimeField() 
     used = models.BooleanField(default=False)
 
+class MFAChallenge(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    token = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    verified = models.BooleanField(default=False)

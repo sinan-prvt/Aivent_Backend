@@ -50,7 +50,10 @@ class RemoteJWTAuthentication(BaseAuthentication):
 
         user_id = decoded.get("user_id")
         if user_id is not None:
-            user_id = int(user_id)
+            user_id = int(user_id)  
+
+        if decoded.get("role") == "vendor" and not decoded.get("mfa", False):
+            raise AuthenticationFailed("MFA required")
 
         user = SimpleNamespace(
             id=user_id,
