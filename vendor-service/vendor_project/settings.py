@@ -21,6 +21,7 @@ ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
     "auth-service",
+    "vendor-service",
 ]
 
 JWT_PUBLIC_KEY_PATH = os.getenv("JWT_PUBLIC_KEY_PATH")

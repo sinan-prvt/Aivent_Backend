@@ -9,8 +9,8 @@ class VendorProfile(models.Model):
         ("suspended","Suspended"),
     ]
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user_id = models.CharField(max_length=64, blank=True, null=True, db_index=True)
-    email = models.EmailField(blank=True, null=True)
+    user_id = models.BigIntegerField(blank=True, null=True, db_index=True)
+    email = models.EmailField(unique=True, db_index=True)
     business_name = models.CharField(max_length=255, blank=True, null=True)
     category_id = models.IntegerField(null=True, blank=True)
     subcategory_ids = models.JSONField(default=list, blank=True)

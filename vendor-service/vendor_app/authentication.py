@@ -48,8 +48,12 @@ class RemoteJWTAuthentication(BaseAuthentication):
             logger.exception("JWT DECODE FAILED")
             raise AuthenticationFailed("Invalid or expired token")
 
+        user_id = decoded.get("user_id")
+        if user_id is not None:
+            user_id = int(user_id)
+
         user = SimpleNamespace(
-            id=decoded.get("user_id") or decoded.get("id"),
+            id=user_id,
             email=decoded.get("email"),
             role=decoded.get("role"),
             is_authenticated=True,
