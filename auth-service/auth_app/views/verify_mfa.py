@@ -25,7 +25,6 @@ class VerifyMFAView(APIView):
 
         challenge = MFAChallenge.objects.select_related("user").filter(
             token=token,
-            verified=False,
             expires_at__gt=timezone.now()
         ).first()
 
@@ -36,16 +35,15 @@ class VerifyMFAView(APIView):
             )
 
         user = challenge.user
-
         totp = pyotp.TOTP(user.totp_secret)
+
         if not totp.verify(code, valid_window=1):
             return Response(
                 {"detail": "Invalid MFA code"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        challenge.verified = True
-        challenge.save(update_fields=["verified"])
+        challenge.delete()
 
         if not user.totp_enabled:
             user.totp_enabled = True
@@ -57,6 +55,11 @@ class VerifyMFAView(APIView):
 
         return Response({
             "access": str(refresh.access_token),
-            "refresh": str(refresh)
+            "refresh": str(refresh),
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "role": user.role,
+            }
         })
 

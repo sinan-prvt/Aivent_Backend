@@ -31,7 +31,7 @@ from auth_app.models import MFAChallenge
 from django.utils import timezone
 from datetime import timedelta
 import secrets
-
+from rest_framework_simplejwt.tokens import AccessToken
 
 User = get_user_model()
 
@@ -139,12 +139,20 @@ class CustomLoginView(TokenObtainPairView):
                 )
                 qr_code = qrcode_base64_from_uri(otpauth_url)
 
+                challenge = MFAChallenge.objects.create(
+                    user=user,
+                    token=secrets.token_urlsafe(32),
+                    expires_at=timezone.now() + timedelta(minutes=5)
+                )
+
                 return Response({
                     "mfa_required": True,
                     "mfa_setup": True,
                     "role": "vendor",
                     "otpauth_url": otpauth_url,
                     "qr_code": qr_code,
+                    "mfa_token": challenge.token,   # ✅ CORRECT
+                    "expires_in": 300
                 }, status=200)
 
             # MFA VERIFY STEP
