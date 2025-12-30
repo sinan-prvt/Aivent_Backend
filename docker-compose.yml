@@ -151,9 +151,45 @@ services:
         python vendor_app/consumers/vendor_events.py
       "
 
+  catalog_db:
+      image: postgres:15
+      environment:
+        POSTGRES_DB: catalog_db
+        POSTGRES_USER: catalog
+        POSTGRES_PASSWORD: catalogpass
+      ports:
+        - "5437:5432"
+      volumes:
+        - catalog_db_data:/var/lib/postgresql/data
+      networks:
+        - aivent-net
+
+
+  catalog-service:
+    build:
+      context: ./catalog-service
+    depends_on:
+      - catalog_db
+    env_file:
+      - ./catalog-service/.env
+    ports:
+      - "8003:8000"
+    volumes:
+      - ./auth-service/keys/public.pem:/app/keys/public.pem:ro
+    networks:
+      - aivent-net
+    command: >
+      sh -c "
+        python manage.py migrate;
+        python manage.py runserver 0.0.0.0:8000 --noreload
+      "
+
+
+
 networks:
   aivent-net:
 
 volumes:
   auth_db_data:
   vendor_db_data:
+  catalog_db_data:
