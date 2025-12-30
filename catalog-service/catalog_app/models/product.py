@@ -31,5 +31,16 @@ class Product(models.Model):
 
     is_available = models.BooleanField(default=True)
 
+    rejection_reason = models.TextField(blank=True, null=True)
+    reviewed_at = models.DateTimeField(blank=True, null=True)
+    reviewed_by = models.IntegerField(blank=True, null=True)
+
+
+    image = models.ImageField(
+        upload_to="products/",
+        blank=True,
+        null=True
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)  # 🔥 THIS LINE FIXES IT

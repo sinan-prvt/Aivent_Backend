@@ -14,15 +14,16 @@ class ProductSerializer(serializers.ModelSerializer):
         ]
 
 class PublicProductSerializer(serializers.ModelSerializer):
-    category = serializers.StringRelatedField()
+    image = serializers.ImageField()
 
     class Meta:
         model = Product
-        fields = ["id", "name", "description", "price", "category"]
-
+        fields = ["id", "name", "price", "image", "category"]
 
 class VendorProductSerializer(serializers.ModelSerializer):
+    image = serializers.ImageField(required=False)
+
     class Meta:
         model = Product
         fields = "__all__"
-        read_only_fields = ["vendor_id"]
+        read_only_fields = ["vendor_id", "status"]
