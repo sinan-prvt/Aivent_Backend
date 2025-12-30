@@ -151,7 +151,7 @@ class CustomLoginView(TokenObtainPairView):
                     "role": "vendor",
                     "otpauth_url": otpauth_url,
                     "qr_code": qr_code,
-                    "mfa_token": challenge.token,   # ✅ CORRECT
+                    "mfa_token": challenge.token,
                     "expires_in": 300
                 }, status=200)
 
