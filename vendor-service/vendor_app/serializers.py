@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import VendorProfile
 from rest_framework import serializers
-from .models import VendorProfile
+from .models import VendorProfile, Notification
 
 class VendorApplySerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
@@ -35,3 +35,16 @@ class VendorProfileSerializer(serializers.ModelSerializer):
         model = VendorProfile
         fields = "__all__"
         read_only_fields = ("id","created_at","updated_at","user_id","status")
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notification
+        fields = [
+            "id",
+            "event_type",
+            "title",
+            "message",
+            "is_read",
+            "created_at",
+        ]

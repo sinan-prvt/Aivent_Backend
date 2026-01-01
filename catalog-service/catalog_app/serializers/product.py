@@ -25,5 +25,30 @@ class VendorProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = "__all__"
-        read_only_fields = ["vendor_id", "status"]
+        fields = [
+            "id",
+            "name",
+            "description",
+            "price",
+            "category",
+            "image",
+            "status",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["status"]
+
+
+class VendorProductUpdateSerializer(serializers.ModelSerializer):
+    image = serializers.ImageField(required=False)
+
+    class Meta:
+        model = Product
+        fields = [
+            "name",
+            "description",
+            "price",
+            "category",
+            "image",
+            "is_available",
+        ]
