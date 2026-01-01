@@ -4,7 +4,7 @@ from django.conf import settings
 from rest_framework import generics
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from .models import VendorProfile
+from .models import VendorProfile, Notification
 from .serializers import VendorApplySerializer, VendorProfileSerializer, VendorConfirmSerializer
 from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
@@ -13,7 +13,10 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 import logging
 from django.db import transaction
-
+from rest_framework.generics import ListAPIView
+from rest_framework.exceptions import PermissionDenied
+from .serializers import NotificationSerializer
+from rest_framework import status
 
 logger = logging.getLogger(__name__)
 
@@ -154,3 +157,51 @@ class InternalVendorApproveView(APIView):
         vendor.save(update_fields=["status"])
 
         return Response({"detail": "Vendor profile approved"}, status=200)
+    
+
+class VendorNotificationListView(ListAPIView):
+    serializer_class = NotificationSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        vendor_id = self.request.user.id  # or vendor_profile.user_id
+        qs = Notification.objects.filter(vendor_id=vendor_id)
+
+        unread = self.request.query_params.get("unread")
+        if unread == "true":
+            qs = qs.filter(is_read=False)
+
+        return qs
+
+
+class MarkNotificationReadView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        vendor_id = request.user.id
+
+        notification = get_object_or_404(
+            Notification,
+            id=pk,
+            vendor_id=vendor_id
+        )
+
+        if not notification.is_read:
+            notification.is_read = True
+            notification.save(update_fields=["is_read"])
+
+        return Response({"status": "ok"}, status=status.HTTP_200_OK)
+
+
+class UnreadNotificationCountView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        vendor_id = request.user.id
+
+        count = Notification.objects.filter(
+            vendor_id=vendor_id,
+            is_read=False
+        ).count()
+
+        return Response({"unread_count": count})

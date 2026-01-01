@@ -1,13 +1,15 @@
 import uuid
 from django.db import models
 
+
 class VendorProfile(models.Model):
     STATUS_CHOICES = [
-        ("pending","Pending"),
-        ("approved","Approved"),
-        ("rejected","Rejected"),
-        ("suspended","Suspended"),
+        ("pending", "Pending"),
+        ("approved", "Approved"),
+        ("rejected", "Rejected"),
+        ("suspended", "Suspended"),
     ]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user_id = models.BigIntegerField(blank=True, null=True, db_index=True)
     email = models.EmailField(unique=True, db_index=True)
@@ -31,8 +33,24 @@ class VendorProfile(models.Model):
             )
         ]
 
-
     def __str__(self):
         return f"{self.business_name} ({self.id})"
-    
 
+
+class Notification(models.Model):
+    vendor_id = models.BigIntegerField(db_index=True)
+
+    event_id = models.UUIDField(unique=True, db_index=True)
+    event_type = models.CharField(max_length=100)
+
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Notification(event={self.event_id}, vendor={self.vendor_id})"

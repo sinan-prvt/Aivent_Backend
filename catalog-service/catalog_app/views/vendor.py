@@ -4,6 +4,7 @@ from catalog_app.models import Product
 from catalog_app.serializers.product import VendorProductSerializer,ProductSerializer
 from rest_framework.generics import RetrieveUpdateDestroyAPIView
 from rest_framework.exceptions import PermissionDenied
+from catalog_app.services.events import publish_catalog_event
 
 class VendorProductListCreateView(ListCreateAPIView):
     serializer_class = VendorProductSerializer
@@ -13,10 +14,20 @@ class VendorProductListCreateView(ListCreateAPIView):
         return Product.objects.filter(vendor_id=self.request.user.id)
 
     def perform_create(self, serializer):
-        serializer.save(
+        product = serializer.save(
             vendor_id=self.request.user.id,
             status=Product.STATUS_PENDING
         )
+
+        publish_catalog_event(
+            event_type="PRODUCT_CREATED",
+            vendor_id=product.vendor_id,
+            payload={
+                "product_id": product.id,
+                "name": product.name,
+            }
+        )
+            
 
 class VendorProductDetailView(RetrieveUpdateDestroyAPIView):
     serializer_class = ProductSerializer

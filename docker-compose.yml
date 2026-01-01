@@ -134,23 +134,6 @@ services:
       - aivent-net
 
 
-  vendor_consumer:
-    build:
-      context: ./vendor-service
-    depends_on:
-      - vendor_db
-      - rabbitmq
-    env_file:
-      - ./vendor-service/.env
-    volumes:
-      - ./auth-service/keys/public.pem:/app/keys/public.pem:ro
-    networks:
-      - aivent-net
-    command: >
-      sh -c "
-        python vendor_app/consumers/vendor_events.py
-      "
-
   catalog_db:
       image: postgres:15
       environment:
@@ -184,6 +167,19 @@ services:
         python manage.py runserver 0.0.0.0:8000 --noreload
       "
 
+  vendor_catalog_consumer:
+    build:
+      context: ./vendor-service
+    depends_on:
+      - rabbitmq
+      - vendor_db
+    env_file:
+      - ./vendor-service/.env
+    volumes:
+       - ./vendor-service:/app
+    networks:
+      - aivent-net
+    command: python vendor_app/consumers/vendor_events.py
 
 
 networks:
