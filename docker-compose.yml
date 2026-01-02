@@ -181,6 +181,44 @@ services:
       - aivent-net
     command: python vendor_app/consumers/vendor_events.py
 
+  chat_api:
+    build: ./chat-service
+    volumes:
+      - ./chat-service:/app
+      - ./auth-service/keys/public.pem:/app/keys/public.pem:ro
+    ports:
+      - "8005:8005"
+    env_file:
+      - ./chat-service/.env
+    depends_on:
+      - chat_db
+      - redis
+    networks:
+      - aivent-net
+    command: >
+      sh -c "
+        /wait-for-db.sh chat_db 5432
+        python manage.py migrate &&
+        daphne -b 0.0.0.0 -p 8005 chat_project.asgi:application
+      "
+
+  chat_db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: chat_db
+      POSTGRES_USER: chat
+      POSTGRES_PASSWORD: chat
+    volumes:
+      - chat_db_data:/var/lib/postgresql/data
+    ports:
+      - "5438:5432"
+    networks:
+      - aivent-net
+
+
+
+
+
 
 networks:
   aivent-net:
@@ -189,3 +227,4 @@ volumes:
   auth_db_data:
   vendor_db_data:
   catalog_db_data:
+  chat_db_data:

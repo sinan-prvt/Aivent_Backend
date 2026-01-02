@@ -11,6 +11,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "description",
             "price",
             "category",
+            "vendor_id",
         ]
 
 class PublicProductSerializer(serializers.ModelSerializer):
@@ -18,7 +19,7 @@ class PublicProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = ["id", "name", "price", "image", "category"]
+        fields = ["id", "name", "price", "image", "category", "vendor_id"]
 
 class VendorProductSerializer(serializers.ModelSerializer):
     image = serializers.ImageField(required=False)

@@ -53,7 +53,6 @@ class VendorApplyView(APIView):
 
         vendor = serializer.save(status="pending")
 
-        # create user in auth-service
         user_resp = requests.post(
             f"{settings.AUTH_SERVICE_URL}/internal/users/",
             json={"email": email, "password": password, "role": "vendor"},
@@ -64,7 +63,6 @@ class VendorApplyView(APIView):
         if user_resp.status_code not in (200, 201, 409):
             raise RuntimeError("Auth service user creation failed")
 
-        # send OTP
         requests.post(
             f"{settings.AUTH_SERVICE_URL}/send-otp/",
             json={"email": email, "purpose": "email_verify"},

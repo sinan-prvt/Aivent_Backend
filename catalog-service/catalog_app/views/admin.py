@@ -44,3 +44,19 @@ class AdminApproveProductView(UpdateAPIView):
             return Response({"error": "Invalid action"}, status=400)
 
         return Response({"status": product.status})
+
+
+from rest_framework.generics import ListAPIView
+from catalog_app.serializers.product import ProductSerializer
+
+class AdminProductListView(ListAPIView):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+    permission_classes = [IsPlatformAdmin]
+
+    def get_queryset(self):
+        queryset = Product.objects.all()
+        status = self.request.query_params.get("status")
+        if status:
+            queryset = queryset.filter(status=status)
+        return queryset
