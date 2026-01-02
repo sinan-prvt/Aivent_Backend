@@ -6,13 +6,17 @@ from django.conf import settings
 from django.conf.urls.static import static
 from auth_app.views.internal_users import InternalUserCreateView
 
+from rest_framework import permissions
+
 schema_view = get_schema_view(
     openapi.Info(
         title="Aivent Auth API",
         default_version='v1',
     ),
     public=True,
+    permission_classes=(permissions.AllowAny,),
 )
+
 
 
 urlpatterns = [

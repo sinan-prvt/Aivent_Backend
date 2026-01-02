@@ -17,3 +17,4 @@ django-cors-headers
 pyotp
 django-extensions
 boto3
+whitenoise
