@@ -14,6 +14,7 @@ from django.utils.decorators import method_decorator
 import logging
 from django.db import transaction
 from rest_framework.generics import ListAPIView
+import sys
 from rest_framework.exceptions import PermissionDenied
 from .serializers import NotificationSerializer
 from rest_framework import status
@@ -203,3 +204,24 @@ class UnreadNotificationCountView(APIView):
         ).count()
 
         return Response({"unread_count": count})
+
+
+class VendorMeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        print(f"🔍 VendorMeView: Request User: {request.user}", flush=True)
+        print(f"🔍 VendorMeView: Request User ID: {request.user.id}", flush=True)
+        
+        try:
+            vendor = VendorProfile.objects.get(user_id=request.user.id)
+            print(f"🔍 VendorMeView: Found Profile: {vendor.id} for User ID: {request.user.id}", flush=True)
+        except VendorProfile.DoesNotExist:
+            print(f"🔍 VendorMeView: ❌ Profile NOT FOUND for User ID: {request.user.id}", flush=True)
+            # print all profiles to see if any exist
+            all_profiles = VendorProfile.objects.all().values('id', 'user_id', 'email')
+            print(f"🔍 VendorMeView: Dump specific profiles: {list(all_profiles)}", flush=True)
+            return Response({"detail": "Vendor profile not found"}, status=404)
+
+        serializer = VendorProfileSerializer(vendor)
+        return Response(serializer.data)

@@ -162,6 +162,7 @@ services:
     ports:
       - "8003:8000"
     volumes:
+      - ./catalog-service:/app
       - ./auth-service/keys/public.pem:/app/keys/public.pem:ro
     networks:
       - aivent-net

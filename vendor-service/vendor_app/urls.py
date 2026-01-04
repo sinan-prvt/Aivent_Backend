@@ -7,9 +7,11 @@ from .views import (
     VendorNotificationListView,
     UnreadNotificationCountView,
     MarkNotificationReadView,
+    VendorMeView,
 )
 
 urlpatterns = [
+    path("me/", VendorMeView.as_view(), name="vendor-me"),
     path("apply/", VendorApplyView.as_view(), name="vendor-apply"),
     path("confirm/", VendorConfirmView.as_view(), name="vendor-confirm"),
 

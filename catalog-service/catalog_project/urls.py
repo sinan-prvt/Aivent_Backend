@@ -11,11 +11,11 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("ping/", ping),
 
+    # VENDOR APIs
+    path("api/catalog/vendor/", include("catalog_app.urls_vendor")),
+
     # PUBLIC APIs
     path("api/catalog/", include("catalog_app.urls")),
-
-    # VENDOR APIs  🔥 THIS LINE WAS MISSING
-    path("api/vendor/", include("catalog_app.urls_vendor")),
 
     path("api/admin/catalog/", include("catalog_app.urls_admin")),
 ]
