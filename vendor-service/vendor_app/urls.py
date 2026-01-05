@@ -7,7 +7,9 @@ from .views import (
     VendorNotificationListView,
     UnreadNotificationCountView,
     MarkNotificationReadView,
+    MarkNotificationReadView,
     VendorMeView,
+    PublicVendorDetailView,
 )
 
 urlpatterns = [
@@ -21,4 +23,6 @@ urlpatterns = [
     path("notifications/", VendorNotificationListView.as_view()),
     path("notifications/unread-count/", UnreadNotificationCountView.as_view()),
     path("notifications/<int:pk>/read/", MarkNotificationReadView.as_view()),
+    # Public endpoint
+    path("public/vendors/<int:user_id>/", PublicVendorDetailView.as_view(), name="public-vendor-detail"),
 ]

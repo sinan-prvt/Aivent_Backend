@@ -47,15 +47,15 @@ class AdminApproveProductView(UpdateAPIView):
 
 
 from rest_framework.generics import ListAPIView
-from catalog_app.serializers.product import ProductSerializer
+from catalog_app.serializers.product import AdminProductSerializer
 
 class AdminProductListView(ListAPIView):
     queryset = Product.objects.all()
-    serializer_class = ProductSerializer
+    serializer_class = AdminProductSerializer
     permission_classes = [IsPlatformAdmin]
 
     def get_queryset(self):
-        queryset = Product.objects.all()
+        queryset = Product.objects.all().order_by('-created_at')  # Show newest first
         status = self.request.query_params.get("status")
         if status:
             queryset = queryset.filter(status=status)

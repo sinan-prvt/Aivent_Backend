@@ -163,11 +163,13 @@ services:
       - "8003:8000"
     volumes:
       - ./catalog-service:/app
+      - ./catalog-service/media:/app/media
       - ./auth-service/keys/public.pem:/app/keys/public.pem:ro
     networks:
       - aivent-net
     command: >
       sh -c "
+        /wait-for-db.sh catalog_db 5432 &&
         python manage.py migrate;
         python manage.py runserver 0.0.0.0:8000 --noreload
       "
@@ -222,6 +224,15 @@ services:
 
 
 
+  ai-planner-service:
+    build: ./ai-planner-service
+    container_name: ai-planner-service
+    ports:
+      - "8010:8000"
+    networks:
+      - aivent-net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 
 
