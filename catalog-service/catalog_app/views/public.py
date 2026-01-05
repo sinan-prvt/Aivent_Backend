@@ -48,6 +48,22 @@ class ProductListView(ListAPIView):
     authentication_classes = []
     permission_classes = [AllowAny]
 
-    queryset = Product.objects.filter(status=Product.STATUS_APPROVED)
     serializer_class = ProductSerializer
 
+    def get_queryset(self):
+        queryset = Product.objects.filter(
+            status=Product.STATUS_APPROVED,
+            is_available=True
+        )
+        
+        # Filter by category if provided
+        category_id = self.request.query_params.get('category')
+        if category_id:
+            queryset = queryset.filter(category_id=category_id)
+        
+        # Search filter if provided
+        search = self.request.query_params.get('search')
+        if search:
+            queryset = queryset.filter(name__icontains=search)
+        
+        return queryset

@@ -225,3 +225,13 @@ class VendorMeView(APIView):
 
         serializer = VendorProfileSerializer(vendor)
         return Response(serializer.data)
+
+
+class PublicVendorDetailView(generics.RetrieveAPIView):
+    """
+    Public endpoint to get vendor details by their user_id.
+    """
+    serializer_class = VendorProfileSerializer
+    permission_classes = [AllowAny]
+    lookup_field = "user_id"
+    queryset = VendorProfile.objects.filter(status="approved") # Only approved vendors

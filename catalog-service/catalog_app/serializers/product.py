@@ -3,6 +3,8 @@ from catalog_app.models import Product
 
 
 class ProductSerializer(serializers.ModelSerializer):
+    image = serializers.ImageField(required=False)
+    
     class Meta:
         model = Product
         fields = [
@@ -12,6 +14,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "price",
             "category",
             "vendor_id",
+            "image",
         ]
 
 class PublicProductSerializer(serializers.ModelSerializer):
@@ -52,4 +55,27 @@ class VendorProductUpdateSerializer(serializers.ModelSerializer):
             "category",
             "image",
             "is_available",
+        ]
+
+
+class AdminProductSerializer(serializers.ModelSerializer):
+    """
+    Serializer for admin product list and review
+    """
+    image = serializers.ImageField(required=False)
+
+    class Meta:
+        model = Product
+        fields = [
+            "id",
+            "name",
+            "description",
+            "price",
+            "category",
+            "vendor_id",
+            "image",
+            "status",
+            "is_available",
+            "created_at",
+            "updated_at",
         ]
