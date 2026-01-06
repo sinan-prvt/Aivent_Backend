@@ -3,5 +3,8 @@ uvicorn
 langchain
 langchain-core
 langchain-community
+langchain-ollama
 faiss-cpu
 requests
+pyyaml
+pydantic

@@ -7,7 +7,7 @@ shift 2
 
 echo "Waiting for PostgreSQL at $HOST:$PORT ..."
 
-until nc -z "$HOST" "$PORT"; do
+until python -c "import socket; s = socket.socket(); s.settimeout(1); s.connect(('$HOST', int('$PORT'))); s.close()" 2>/dev/null; do
   echo "Postgres not ready yet..."
   sleep 2
 done

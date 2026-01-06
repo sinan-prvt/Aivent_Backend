@@ -4,6 +4,8 @@ from catalog_app.models import Product
 from catalog_app.serializers.product import VendorProductSerializer,ProductSerializer
 from rest_framework.generics import RetrieveUpdateDestroyAPIView
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.response import Response
+from rest_framework import status
 from catalog_app.services.events import publish_catalog_event
 
 class VendorProductListCreateView(ListCreateAPIView):
@@ -36,3 +38,13 @@ class VendorProductDetailView(RetrieveUpdateDestroyAPIView):
     def get_queryset(self):
         # Vendor can access ONLY their own products
         return Product.objects.filter(vendor_id=self.request.user.id)
+
+    def destroy(self, request, *args, **kwargs):
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except Exception as e:
+            print(f"Error deleting product: {e}")
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )

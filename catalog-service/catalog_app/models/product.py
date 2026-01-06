@@ -30,6 +30,7 @@ class Product(models.Model):
     )
 
     is_available = models.BooleanField(default=True)
+    stock = models.IntegerField(default=1)
 
     rejection_reason = models.TextField(blank=True, null=True)
     reviewed_at = models.DateTimeField(blank=True, null=True)
@@ -43,7 +44,7 @@ class Product(models.Model):
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)  # 🔥 THIS LINE FIXES IT
+    updated_at = models.DateTimeField(auto_now=True)
 
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, related_name='images', on_delete=models.CASCADE)

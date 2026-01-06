@@ -7,9 +7,12 @@ from .views import (
     VendorNotificationListView,
     UnreadNotificationCountView,
     MarkNotificationReadView,
-    MarkNotificationReadView,
     VendorMeView,
     PublicVendorDetailView,
+    ScheduleTaskListCreateView,
+    ScheduleTaskDetailView,
+    TechnicianListCreateView,
+    TechnicianDetailView,
 )
 
 urlpatterns = [
@@ -23,6 +26,15 @@ urlpatterns = [
     path("notifications/", VendorNotificationListView.as_view()),
     path("notifications/unread-count/", UnreadNotificationCountView.as_view()),
     path("notifications/<int:pk>/read/", MarkNotificationReadView.as_view()),
+    
+    # Schedule Tasks
+    path("schedule/tasks/", ScheduleTaskListCreateView.as_view(), name="schedule-task-list"),
+    path("schedule/tasks/<uuid:pk>/", ScheduleTaskDetailView.as_view(), name="schedule-task-detail"),
+
+    # Technician Management
+    path("technicians/", TechnicianListCreateView.as_view(), name="technician-list"),
+    path("technicians/<uuid:pk>/", TechnicianDetailView.as_view(), name="technician-detail"),
+
     # Public endpoint
     path("public/vendors/<int:user_id>/", PublicVendorDetailView.as_view(), name="public-vendor-detail"),
 ]

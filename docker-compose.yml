@@ -118,7 +118,7 @@ services:
       sh -c "
         /wait-for-db.sh vendor_db 5432;
         python manage.py migrate;
-        python manage.py runserver 0.0.0.0:8000 --noreload
+        python manage.py runserver 0.0.0.0:8000
       "
 
 
@@ -169,9 +169,9 @@ services:
       - aivent-net
     command: >
       sh -c "
-        /wait-for-db.sh catalog_db 5432 &&
+        ./wait-for-db.sh catalog_db 5432 &&
         python manage.py migrate;
-        python manage.py runserver 0.0.0.0:8000 --noreload
+        python manage.py runserver 0.0.0.0:8000
       "
 
   vendor_catalog_consumer:

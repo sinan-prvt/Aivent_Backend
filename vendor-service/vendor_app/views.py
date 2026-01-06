@@ -235,3 +235,47 @@ class PublicVendorDetailView(generics.RetrieveAPIView):
     permission_classes = [AllowAny]
     lookup_field = "user_id"
     queryset = VendorProfile.objects.filter(status="approved") # Only approved vendors
+
+
+from .models import ScheduleTask
+from .serializers import ScheduleTaskSerializer
+
+class ScheduleTaskListCreateView(generics.ListCreateAPIView):
+    serializer_class = ScheduleTaskSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return ScheduleTask.objects.filter(vendor_id=self.request.user.id)
+
+    def perform_create(self, serializer):
+        serializer.save(vendor_id=self.request.user.id)
+
+
+class ScheduleTaskDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = ScheduleTaskSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return ScheduleTask.objects.filter(vendor_id=self.request.user.id)
+
+
+from .models import Technician
+from .serializers import TechnicianSerializer
+
+class TechnicianListCreateView(generics.ListCreateAPIView):
+    serializer_class = TechnicianSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Technician.objects.filter(vendor_id=self.request.user.id)
+
+    def perform_create(self, serializer):
+        serializer.save(vendor_id=self.request.user.id)
+
+
+class TechnicianDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = TechnicianSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Technician.objects.filter(vendor_id=self.request.user.id)

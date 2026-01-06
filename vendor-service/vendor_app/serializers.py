@@ -1,7 +1,5 @@
 from rest_framework import serializers
-from .models import VendorProfile
-from rest_framework import serializers
-from .models import VendorProfile, Notification
+from .models import VendorProfile, Notification, ScheduleTask, Technician
 
 class VendorApplySerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
@@ -19,9 +17,12 @@ class VendorApplySerializer(serializers.ModelSerializer):
             "address",
             "gst_number",
             "documents",
+            "bank_name",
+            "account_number",
+            "ifsc_code",
+            "account_holder_name",
         ]
         read_only_fields = ("id",)
-
 
 
 class VendorConfirmSerializer(serializers.Serializer):
@@ -29,7 +30,7 @@ class VendorConfirmSerializer(serializers.Serializer):
     email = serializers.EmailField()
     otp = serializers.CharField()
 
-    
+
 class VendorProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = VendorProfile
@@ -48,3 +49,17 @@ class NotificationSerializer(serializers.ModelSerializer):
             "is_read",
             "created_at",
         ]
+
+
+class ScheduleTaskSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ScheduleTask
+        fields = "__all__"
+        read_only_fields = ("id", "vendor_id", "created_at", "updated_at")
+
+
+class TechnicianSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Technician
+        fields = "__all__"
+        read_only_fields = ("id", "vendor_id", "created_at", "updated_at")

@@ -15,6 +15,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "category",
             "vendor_id",
             "image",
+            "stock",
         ]
 
 class PublicProductSerializer(serializers.ModelSerializer):
@@ -22,7 +23,7 @@ class PublicProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = ["id", "name", "price", "image", "category", "vendor_id"]
+        fields = ["id", "name", "price", "image", "category", "vendor_id", "stock"]
 
 class VendorProductSerializer(serializers.ModelSerializer):
     image = serializers.ImageField(required=False)
@@ -36,6 +37,7 @@ class VendorProductSerializer(serializers.ModelSerializer):
             "price",
             "category",
             "image",
+            "stock",
             "status",
             "created_at",
             "updated_at",
@@ -54,6 +56,7 @@ class VendorProductUpdateSerializer(serializers.ModelSerializer):
             "price",
             "category",
             "image",
+            "stock",
             "is_available",
         ]
 
@@ -74,6 +77,7 @@ class AdminProductSerializer(serializers.ModelSerializer):
             "category",
             "vendor_id",
             "image",
+            "stock",
             "status",
             "is_available",
             "created_at",
