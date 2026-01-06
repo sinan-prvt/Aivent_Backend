@@ -1,0 +1,29 @@
+event_type: wedding
+
+rules:
+  - id: WED_001
+    priority: 100
+    conditions:
+      budget: under_3_lakhs
+      service: dj
+    decision:
+      recommended: false
+      reason: "Budget constraint"
+
+  - id: WED_002
+    priority: 90
+    conditions:
+      budget: under_3_lakhs
+      service: catering
+    decision:
+      recommended: true
+      reason: "Essential service"
+
+  - id: WED_003
+    priority: 85
+    conditions:
+      budget: under_3_lakhs
+      service: decoration
+    decision:
+      recommended: true
+      reason: "Basic decoration only"

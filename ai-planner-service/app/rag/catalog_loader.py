@@ -1,7 +1,7 @@
 import requests
 from langchain_core.documents import Document
 
-CATALOG_SERVICE_URL = "http://catalog-service:8003/api/catalog/categories/"
+CATALOG_SERVICE_URL = "http://catalog-service:8000/api/catalog/categories/"
 
 def load_catalog_documents():
     documents = []

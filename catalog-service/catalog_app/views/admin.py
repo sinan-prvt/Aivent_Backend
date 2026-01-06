@@ -60,3 +60,11 @@ class AdminProductListView(ListAPIView):
         if status:
             queryset = queryset.filter(status=status)
         return queryset
+
+
+from rest_framework.generics import RetrieveUpdateDestroyAPIView
+
+class AdminProductDetailView(RetrieveUpdateDestroyAPIView):
+    queryset = Product.objects.all()
+    serializer_class = AdminProductSerializer
+    permission_classes = [IsPlatformAdmin]

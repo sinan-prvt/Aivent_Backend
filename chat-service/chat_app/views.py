@@ -147,6 +147,8 @@ class VendorInboxView(APIView):
         if not vendor_id:
             return Response({"detail": "vendor_id missing"}, status=400)
 
+        print(f"DEBUG: VendorInboxView user={user}, vendor_id={vendor_id} (type {type(vendor_id)})")
+
         # 2️⃣ Find last message per user
         last_messages = (
             ChatMessage.objects
@@ -156,6 +158,8 @@ class VendorInboxView(APIView):
                 last_time=Max("created_at")
             )
         )
+        print(f"DEBUG: last_messages query: {last_messages.query}")
+        print(f"DEBUG: last_messages count: {len(last_messages)}")
 
         inbox = []
 

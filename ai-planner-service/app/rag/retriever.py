@@ -1,5 +1,5 @@
 from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import OllamaEmbeddings
+from langchain_ollama import OllamaEmbeddings
 
 from app.rag.knowledge import get_documents
 from app.rag.catalog_loader import load_catalog_documents

@@ -3,35 +3,43 @@ from langchain_core.documents import Document
 def get_documents():
     return [
 
-        Document(
-            page_content="""
-EVENT TYPE: Wedding
-BUDGET RANGE: Under 3 Lakhs INR
-GUEST COUNT: 80–120
-CITY TYPE: Tier-2 or Tier-3 city
+       Document(
+    page_content="""
+EVENT_TYPE: Wedding
+BUDGET_RANGE: Under 3 Lakhs INR
+GUEST_COUNT: 80–120
+CITY_TYPE: Tier-2 or Tier-3
 
-PRIORITY SERVICES:
-- Catering (simple buffet)
-- Basic venue decoration
-- Community or function hall
+SERVICE: Catering
+RECOMMENDED: Yes
+DETAILS: Simple buffet, limited menu
 
-DEFERRED SERVICES:
-- DJ or live band
-- Premium photography
-- Luxury lighting
+SERVICE: Venue
+RECOMMENDED: Yes
+DETAILS: Community or function hall
 
-BUDGET BREAKDOWN:
-- Catering: 45–50%
-- Venue & decoration: 30–35%
-- Photography (basic): 10–15%
-- Miscellaneous: 5–10%
+SERVICE: Decoration
+RECOMMENDED: Yes
+DETAILS: Basic decoration only
 
-PLANNING TIPS:
-- Prefer lunch wedding
-- Limit menu items
-- Avoid multiple vendors
+SERVICE: Photography
+RECOMMENDED: Yes
+DETAILS: Basic photography
+
+SERVICE: DJ
+RECOMMENDED: No
+REASON: Budget constraint
+
+SERVICE: Live Band
+RECOMMENDED: No
+REASON: Budget constraint
+
+SERVICE: Luxury Lighting
+RECOMMENDED: No
+REASON: Budget constraint
 """
-        ),
+),
+    
 
         Document(
             page_content="""
