@@ -1,7 +1,7 @@
 BUDGET_POLICIES = {
     "under_3_lakhs": {
         "catering": {
-            "max_price_per_plate": 500
+            "max_package_price": 30000
         },
         "decoration": {
             "max_package_price": 30000

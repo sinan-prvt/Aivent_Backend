@@ -10,18 +10,19 @@ llm = ChatOllama(
 
 def explain_service(service: str, recommended: bool, reason: str, budget: str) -> str:
     prompt = f"""
-Explain this decision in 1 short sentence.
+Explain the decision in ONE sentence.
 
 Rules:
-- Do NOT describe JSON
-- Do NOT summarize multiple services
-- Do NOT talk about the system
-- Mention budget constraints if the service is not recommended
+- Do NOT restate inputs
+- Do NOT mention variable names
+- Use INR only
+- If not recommended, explicitly say why
 
-Service: {service}
-Recommended: {recommended}
-Reason: {reason}
-Budget: {budget}
+Decision:
+Service = {service}
+Recommended = {recommended}
+Reason = {reason}
+Budget = {budget}
 """
 
     response = llm.invoke(prompt)
