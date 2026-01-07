@@ -8,7 +8,10 @@ from rest_framework.response import Response
 from rest_framework import status
 from catalog_app.services.events import publish_catalog_event
 
+from rest_framework.parsers import MultiPartParser, FormParser
+
 class VendorProductListCreateView(ListCreateAPIView):
+    parser_classes = (MultiPartParser, FormParser)
     serializer_class = VendorProductSerializer
     permission_classes = [IsVendor]
 

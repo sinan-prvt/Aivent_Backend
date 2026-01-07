@@ -170,8 +170,14 @@ def plan(payload: AskRequest, explain: bool = False):
 
             products = filter_products_by_budget(products, policy)
 
-            if policy and "max" in policy:
-                products = rank_products(products, policy["max"])
+            if policy:
+                limit = (
+                    policy.get("max_price_per_plate")
+                    or policy.get("max_package_price")
+                )
+
+                if limit:
+                    products = rank_products(products, limit)
 
         plan.append({
             "service": service,

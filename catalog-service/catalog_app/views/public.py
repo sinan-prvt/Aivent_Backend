@@ -6,7 +6,7 @@ from rest_framework.generics import ListCreateAPIView
 from catalog_app.utils.categories import get_category_and_descendants
 from rest_framework.permissions import AllowAny
 
-class CategoryListView(ListAPIView):
+class CategoryListView(ListCreateAPIView):
     authentication_classes = []   # 🔥 disable JWT
     permission_classes = [AllowAny]
 

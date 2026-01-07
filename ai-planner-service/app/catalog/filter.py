@@ -5,9 +5,9 @@ def filter_products_by_budget(products: list[dict], policy: dict) -> list[dict]:
     filtered = []
 
     for product in products:
-        price = product.get("price")
-
-        if price is None:
+        try:
+            price = float(product.get("price", 0))
+        except (TypeError, ValueError):
             continue
 
         if "max_price_per_plate" in policy:
