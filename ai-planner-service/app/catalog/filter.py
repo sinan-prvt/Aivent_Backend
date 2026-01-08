@@ -7,6 +7,7 @@ def filter_products_by_budget(products: list[dict], policy: dict) -> list[dict]:
     for product in products:
         try:
             price = float(product.get("price", 0))
+            product["price"] = price
         except (TypeError, ValueError):
             continue
 

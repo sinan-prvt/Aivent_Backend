@@ -13,13 +13,23 @@ from app.rules.budget_distribution import BUDGET_DISTRIBUTION
 from app.rules.budget_calculator import calculate_budget_breakdown
 from app.llm.explainer import explain_service
 from app.catalog.ranker import rank_products
-
+from app.explanations.templates import RULE_BASED_EXPLANATIONS
 
 router = APIRouter()
 
 
 class AskRequest(BaseModel):
     question: str
+
+
+class UserPreferences(BaseModel):
+    priority: str = "balanced"  # "price", "quality", or "balanced"
+    city: str | None = None
+
+
+class PlanRequest(BaseModel):
+    question: str
+    preferences: UserPreferences | None = None
 
 
 def extract_service_from_question(question: str) -> str | None:
@@ -45,10 +55,19 @@ def extract_context(question: str):
 
     service = extract_service_from_question(q)
 
+    # City detection
+    city = None
+    cities = ["mumbai", "delhi", "bangalore", "pune", "hyderabad", "chennai", "kolkata"]
+    for c in cities:
+        if c in q:
+            city = c.capitalize()
+            break
+
     return {
         "event_type": event_type,
         "budget": budget,
         "service": service,
+        "city": city
     }
 
 def extract_plan_context(question: str):
@@ -62,15 +81,26 @@ def extract_plan_context(question: str):
     if "under 3" in q or "3 lakh" in q:
         budget = "under_3_lakhs"
 
+    # City detection
+    city = None
+    cities = ["mumbai", "delhi", "bangalore", "pune", "hyderabad", "chennai", "kolkata"]
+    for c in cities:
+        if c in q:
+            city = c.capitalize()
+            break
+
     return {
         "event_type": event_type,
-        "budget": budget
+        "budget": budget,
+        "city": city
     }
 
 
 @router.post("/ask")
-def ask(payload: AskRequest):
+def ask(payload: PlanRequest):
     context = extract_context(payload.question)
+    priority = payload.preferences.priority if payload.preferences else "balanced"
+    priority_city = payload.preferences.city if payload.preferences else None
 
     if not context["event_type"]:
         return {"error": "Event type not identified"}
@@ -104,6 +134,21 @@ def ask(payload: AskRequest):
         if decision["recommended"]:
             products = fetch_products(context["service"])
 
+            # 1. Availability/Stock Filter (Mandatory)
+            products = [
+                p for p in products 
+                if p.get("is_available", True) and p.get("stock", 0) > 0
+            ]
+
+            # 2. City Filter
+            # Priority: Preferences > Detected from context
+            target_city = priority_city or context.get("city")
+            if target_city:
+                products = [
+                    p for p in products 
+                    if p.get("city", "").lower() == target_city.lower()
+                ]
+
             policy = (
                 BUDGET_POLICIES
                 .get(context["budget"], {})
@@ -111,6 +156,14 @@ def ask(payload: AskRequest):
             )
 
             products = filter_products_by_budget(products, policy)
+
+            if products:
+                limit = (
+                    policy.get("max_price_per_plate")
+                    or policy.get("max_package_price")
+                )
+                if limit:
+                    products = rank_products(products, limit, priority)
 
         return {
             "service": context["service"],
@@ -132,8 +185,10 @@ def ask(payload: AskRequest):
 
 
 @router.post("/plan")
-def plan(payload: AskRequest, explain: bool = False):
+def plan(payload: PlanRequest, explain: bool = False):
     context = extract_plan_context(payload.question)
+    priority = payload.preferences.priority if payload.preferences else "balanced"
+    priority_city = payload.preferences.city if payload.preferences else None
 
     if not context["event_type"] or not context["budget"]:
         return {"error": "Event type or budget not identified"}
@@ -162,6 +217,20 @@ def plan(payload: AskRequest, explain: bool = False):
             products = fetch_products(service)
             print(f"[DEBUG] Raw products for {service}:", products)
 
+            # 1. Availability/Stock Filter (Mandatory)
+            products = [
+                p for p in products 
+                if p.get("is_available", True) and p.get("stock", 0) > 0
+            ]
+
+            # 2. City Filter
+            target_city = priority_city or context.get("city")
+            if target_city:
+                products = [
+                    p for p in products 
+                    if p.get("city", "").lower() == target_city.lower()
+                ]
+
             policy = (
                 BUDGET_POLICIES
                 .get(context["budget"], {})
@@ -177,15 +246,18 @@ def plan(payload: AskRequest, explain: bool = False):
                 )
 
                 if limit:
-                    products = rank_products(products, limit)
+                    products = rank_products(products, limit, priority)
+
+        best_product = products[0] if products else None
+        alternatives = products[1:3] if len(products) > 1 else []
 
         plan.append({
             "service": service,
             "recommended": decision["recommended"],
             "reason": decision["reason"],
-            "products": products,
+            "recommended_product": best_product,
+            "alternatives": alternatives,
         })
-
     # 2️⃣ CALCULATE BUDGET
     recommended_services = [
         item["service"]
@@ -222,11 +294,13 @@ def plan(payload: AskRequest, explain: bool = False):
 
         for item in plan:
             try:
-                explanations[item["service"]] = explain_service(
-                    service=item["service"],
-                    recommended=item["recommended"],
-                    reason=item["reason"],
-                    budget=context["budget"],
+                service = item["service"]
+                recommended = item["recommended"]
+
+                explanations[service] = (
+                    RULE_BASED_EXPLANATIONS
+                    .get(service, {})
+                    .get(recommended, "No explanation available.")
                 )
             except Exception:
                 explanations[item["service"]] = "Explanation unavailable."

@@ -231,6 +231,8 @@ services:
       - "8010:8000"
     networks:
       - aivent-net
+    volumes:
+      - ./ai-planner-service:/app
     extra_hosts:
       - "host.docker.internal:host-gateway"
 

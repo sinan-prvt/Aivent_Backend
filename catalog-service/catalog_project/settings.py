@@ -10,7 +10,7 @@ SECRET_KEY = 'django-insecure-k==ph!gmoij@)ibj#zvuhd+(wc#i7p%z1(061sqv34(%ybae%5
 
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["catalog-service", "localhost", "127.0.0.1", "0.0.0.0"]
 
 
 INSTALLED_APPS = [
