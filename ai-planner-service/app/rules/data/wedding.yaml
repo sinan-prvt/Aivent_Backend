@@ -27,3 +27,30 @@ rules:
     decision:
       recommended: true
       reason: "Basic decoration only"
+
+  - id: WED_004
+    priority: 100
+    conditions:
+      budget: under_5_lakhs
+      service: dj
+    decision:
+      recommended: true
+      reason: "DJ included for larger budget"
+
+  - id: WED_005
+    priority: 95
+    conditions:
+      budget: under_5_lakhs
+      service: catering
+    decision:
+      recommended: true
+      reason: "Premium catering options"
+
+  - id: WED_006
+    priority: 90
+    conditions:
+      budget: under_5_lakhs
+      service: decoration
+    decision:
+      recommended: true
+      reason: "Full themed decoration"

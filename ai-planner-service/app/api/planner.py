@@ -25,6 +25,8 @@ class AskRequest(BaseModel):
 class UserPreferences(BaseModel):
     priority: str = "balanced"  # "price", "quality", or "balanced"
     city: str | None = None
+    event_type: str | None = None
+    budget: str | None = None
 
 
 class PlanRequest(BaseModel):
@@ -52,6 +54,8 @@ def extract_context(question: str):
     budget = None
     if "under 3" in q or "3 lakh" in q:
         budget = "under_3_lakhs"
+    elif "under 5" in q or "5 lakh" in q:
+        budget = "under_5_lakhs"
 
     service = extract_service_from_question(q)
 
@@ -80,6 +84,8 @@ def extract_plan_context(question: str):
     budget = None
     if "under 3" in q or "3 lakh" in q:
         budget = "under_3_lakhs"
+    elif "under 5" in q or "5 lakh" in q:
+        budget = "under_5_lakhs"
 
     # City detection
     city = None
@@ -102,14 +108,45 @@ def ask(payload: PlanRequest):
     priority = payload.preferences.priority if payload.preferences else "balanced"
     priority_city = payload.preferences.city if payload.preferences else None
 
+    # Relaxed validation for /ask - Default if possible
+    # Use preference as fallback if not in current question
     if not context["event_type"]:
-        return {"error": "Event type not identified"}
+        context["event_type"] = (payload.preferences.event_type if payload.preferences else None) or "wedding"
 
     if not context["budget"]:
-        return {"error": "Budget not identified"}
+        context["budget"] = (payload.preferences.budget if payload.preferences else None) or "under_3_lakhs"
+
+    state_context = {
+        "event_type": context["event_type"],
+        "budget": context["budget"]
+    }
 
     if not context["service"]:
-        return {"error": "Service not identified"}
+        # If no service mentioned but we have event/budget, provide a summary
+        if context["event_type"] and context["budget"]:
+            total = BUDGET_TOTALS.get(context["budget"], 0)
+            dist = BUDGET_DISTRIBUTION.get(context["event_type"], {}).get(context["budget"], {})
+            
+            summary_parts = [f"I can help you plan your {context['event_type']} for ₹{total:,}!"]
+            summary_parts.append("\nHere's a recommended budget breakdown:")
+            
+            for s, pct in dist.items():
+                amt = (pct / 100) * total
+                summary_parts.append(f"• **{s.capitalize()}**: ₹{int(amt):,}")
+            
+            summary_parts.append("\nWhich service should we find products for first? (e.g., 'Find a DJ')")
+            
+            return {
+                "explanation": "\n".join(summary_parts),
+                "products": [],
+                "context": state_context
+            }
+
+        return {
+            "error": "Service not identified",
+            "message": "I can help you find DJs, caterers, or decorators. What's on your mind?",
+            "context": state_context
+        }
 
     # 🔒 RULE ENGINE FIRST (MANDATORY)
     rules = load_rules(context["event_type"])
@@ -140,14 +177,8 @@ def ask(payload: PlanRequest):
                 if p.get("is_available", True) and p.get("stock", 0) > 0
             ]
 
-            # 2. City Filter
-            # Priority: Preferences > Detected from context
-            target_city = priority_city or context.get("city")
-            if target_city:
-                products = [
-                    p for p in products 
-                    if p.get("city", "").lower() == target_city.lower()
-                ]
+            # 2. City Filter (REMOVED as per user request)
+            # products = [p for p in products if p.get("city", "").lower() == target_city.lower()]
 
             policy = (
                 BUDGET_POLICIES
@@ -170,6 +201,7 @@ def ask(payload: PlanRequest):
             "recommended": decision["recommended"],
             "reason": decision["reason"],
             "products": products,
+            "context": state_context
         }
 
     # ⚠️ FALLBACK → INFORMATION ONLY (NO DECISIONS)
@@ -178,7 +210,8 @@ def ask(payload: PlanRequest):
 
     return {
         "answer": "No strict rule matched. Showing general guidance only.",
-        "context": docs[0].page_content if docs else None,
+        "context_info": docs[0].page_content if docs else None,
+        "context": state_context
     }
 
 
@@ -223,13 +256,7 @@ def plan(payload: PlanRequest, explain: bool = False):
                 if p.get("is_available", True) and p.get("stock", 0) > 0
             ]
 
-            # 2. City Filter
-            target_city = priority_city or context.get("city")
-            if target_city:
-                products = [
-                    p for p in products 
-                    if p.get("city", "").lower() == target_city.lower()
-                ]
+            # 2. City Filter (REMOVED as per user request)
 
             policy = (
                 BUDGET_POLICIES
