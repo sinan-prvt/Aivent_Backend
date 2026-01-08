@@ -13,6 +13,7 @@ class Product(models.Model):
     )
 
     vendor_id = models.IntegerField()
+    city = models.CharField(max_length=100, default="Mumbai", db_index=True)
 
     STATUS_PENDING = "pending"
     STATUS_APPROVED = "approved"

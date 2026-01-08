@@ -7,7 +7,13 @@ def load_catalog_documents():
     documents = []
 
     try:
+        print(f"[AI PLANNER] Fetching catalog from: {CATALOG_SERVICE_URL}", flush=True)
         response = requests.get(CATALOG_SERVICE_URL, timeout=3)
+        print(f"[AI PLANNER] Status: {response.status_code}", flush=True)
+        
+        if response.status_code != 200:
+             print(f"[AI PLANNER] Error Response: {response.text[:500]}", flush=True)
+
         response.raise_for_status()
         categories = response.json()
     except Exception as e:

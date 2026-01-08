@@ -6,6 +6,8 @@ from rest_framework.generics import ListCreateAPIView
 from catalog_app.utils.categories import get_category_and_descendants
 from rest_framework.permissions import AllowAny
 
+from django.shortcuts import get_object_or_404
+
 class CategoryListView(ListCreateAPIView):
     authentication_classes = []   # 🔥 disable JWT
     permission_classes = [AllowAny]
@@ -24,7 +26,7 @@ class ProductByCategoryView(ListAPIView):
     def get_queryset(self):
         slug = self.kwargs["slug"]
 
-        category = Category.objects.get(slug=slug)
+        category = get_object_or_404(Category, slug=slug)
 
         category_ids = get_category_and_descendants(category)
 
