@@ -6,6 +6,13 @@ BUDGET_DISTRIBUTION = {
             "photography": 15,
             "venue": 15,
             "misc": 5,
+        },
+        "under_5_lakhs": {
+            "catering": 40,
+            "decoration": 25,
+            "photography": 15,
+            "venue": 15,
+            "misc": 5,
         }
     }
 }

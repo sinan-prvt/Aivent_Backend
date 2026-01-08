@@ -4,11 +4,13 @@ class Delivery(models.Model):
     STATUS_DRAFT = "draft"
     STATUS_UPLOADING = "uploading"
     STATUS_DELIVERED = "delivered"
+    STATUS_PENDING = "pending"
 
     STATUS_CHOICES = [
         (STATUS_DRAFT, "Draft"),
         (STATUS_UPLOADING, "Uploading"),
         (STATUS_DELIVERED, "Delivered"),
+        (STATUS_PENDING, "Pending"),
     ]
 
     vendor_id = models.IntegerField(db_index=True)
