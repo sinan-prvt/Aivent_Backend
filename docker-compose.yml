@@ -237,26 +237,11 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-
   core-service:
     build: ./core-service
     container_name: core-service
     ports:
       - "8006:8000"
-    depends_on:
-      - core-db
-
-  core-db:
-    image: postgres:15
-    container_name: core-db
-    environment:
-      POSTGRES_DB: core_db
-      POSTGRES_USER: core_user
-      POSTGRES_PASSWORD: core_pass
-    volumes:
-      - core_db_data:/var/lib/postgresql/data
-
-
 
 networks:
   aivent-net:
@@ -266,4 +251,3 @@ volumes:
   vendor_db_data:
   catalog_db_data:
   chat_db_data:
-  core_db_data:
