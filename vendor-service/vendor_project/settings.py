@@ -41,7 +41,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "drf_yasg",
-
+    "channels",
     "vendor_app",
 ]
 
@@ -82,6 +82,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'vendor_project.wsgi.application'
+ASGI_APPLICATION = 'vendor_project.asgi.application'
 
 
 DATABASES = {
@@ -147,3 +148,15 @@ EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 JWT_SIGNING_KEY = os.getenv("JWT_SIGNING_KEY")
 
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL")
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [(
+                os.getenv("REDIS_HOST", "redis"),
+                int(os.getenv("REDIS_PORT", 6379))
+            )],
+        },
+    },
+}

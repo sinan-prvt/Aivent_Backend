@@ -35,6 +35,7 @@ class VendorProductListCreateView(ListCreateAPIView):
             
 
 class VendorProductDetailView(RetrieveUpdateDestroyAPIView):
+    parser_classes = (MultiPartParser, FormParser)
     serializer_class = ProductSerializer
     permission_classes = [IsVendor]
 

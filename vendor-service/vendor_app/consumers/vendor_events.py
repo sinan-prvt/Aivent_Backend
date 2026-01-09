@@ -13,8 +13,16 @@ django.setup()
 
 from django.db import transaction, IntegrityError, close_old_connections
 from vendor_app.models import Notification
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
 logger = logging.getLogger(__name__)
+print("🚀 Vendor event consumer script starting...", flush=True)
 
 RABBIT_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@rabbitmq:5672/")
 EXCHANGE = os.getenv("EVENT_EXCHANGE", "catalog.events")
@@ -37,15 +45,53 @@ def handle_catalog_event(ch, method, properties, body):
         return
 
     try:
+        target_role = None
+        if event["event_type"] in ["VENDOR_APPLIED", "PRODUCT_CREATED"]:
+            target_role = "admin"
+
         with transaction.atomic():
             Notification.objects.create(
                 vendor_id=event["vendor_id"],
+                target_role=target_role,
                 event_id=event["event_id"],
                 event_type=event["event_type"],
-                title=_get_title(event["event_type"]),
-                message=_get_message(event["event_type"], event["payload"]),
+                title=_get_title(event["event_type"], target_role),
+                message=_get_message(event["event_type"], event["payload"], target_role),
             )
-        logger.info(f"Processed event {event['event_id']}")
+        
+        # Broadcast to WebSocket
+        channel_layer = get_channel_layer()
+
+        if target_role == "admin":
+            # Broadcast ONLY to admins
+            async_to_sync(channel_layer.group_send)(
+                "role_admin",
+                {
+                    "type": "notify_new",
+                    "notification": {
+                        "id": event["event_id"],
+                        "event_type": event["event_type"],
+                        "title": _get_title(event["event_type"], "admin"),
+                        "message": f"Vendor {event['vendor_id']}: {_get_message(event['event_type'], event['payload'], 'admin')}",
+                    }
+                }
+            )
+        else:
+            # Broadcast ONLY to the specific vendor
+            async_to_sync(channel_layer.group_send)(
+                f"user_{event['vendor_id']}",
+                {
+                    "type": "notify_new",
+                    "notification": {
+                        "id": event["event_id"],
+                        "event_type": event["event_type"],
+                        "title": _get_title(event["event_type"], "vendor"),
+                        "message": _get_message(event["event_type"], event["payload"], "vendor"),
+                    }
+                }
+            )
+
+        logger.info(f"Processed and broadcast event {event['event_id']}")
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
     except IntegrityError:
@@ -61,21 +107,37 @@ def handle_catalog_event(ch, method, properties, body):
         close_old_connections()
 
 
-def _get_title(event_type):
-    return {
-        "PRODUCT_CREATED": "Product submitted",
-        "PRODUCT_APPROVED": "Product approved 🎉",
-        "PRODUCT_REJECTED": "Product rejected ❌",
-    }.get(event_type, "Notification")
+def _get_title(event_type, target_role=None):
+    titles = {
+        "PRODUCT_CREATED": "New Product Submitted" if target_role == "admin" else "Product Submitted",
+        "PRODUCT_APPROVED": "Product Approved 🎉",
+        "PRODUCT_REJECTED": "Product Rejected ❌",
+        "VENDOR_APPLIED": "New Vendor Application",
+        "VENDOR_APPROVED": "Application Approved 🎉",
+        "BOOKING_NEW": "New Booking Received 📅",
+    }
+    return titles.get(event_type, "Notification")
 
 
-def _get_message(event_type, payload):
+def _get_message(event_type, payload, target_role=None):
     name = payload.get("name", "")
-    return {
-        "PRODUCT_CREATED": f"Your product '{name}' was submitted for review.",
+    if event_type == "PRODUCT_CREATED":
+        if target_role == "admin":
+            return f"New product '{name}' submitted for review."
+        return f"Your product '{name}' was submitted for review."
+
+    if event_type == "VENDOR_APPLIED":
+        if target_role == "admin":
+            return "A new vendor application has been received."
+        return "Your vendor application has been submitted."
+
+    messages = {
         "PRODUCT_APPROVED": f"Your product '{name}' is now live.",
         "PRODUCT_REJECTED": f"Your product '{name}' was rejected.",
-    }.get(event_type, "You have a new notification.")
+        "VENDOR_APPROVED": f"Welcome! Your vendor application has been approved.",
+        "BOOKING_NEW": f"You have a new booking request for your service.",
+    }
+    return messages.get(event_type, "You have a new notification.")
 
 
 def _consume():
