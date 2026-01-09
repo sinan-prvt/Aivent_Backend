@@ -163,8 +163,12 @@ class VendorNotificationListView(ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        vendor_id = self.request.user.id  # or vendor_profile.user_id
-        qs = Notification.objects.filter(vendor_id=vendor_id)
+        user = self.request.user
+        if user.role == "admin":
+            qs = Notification.objects.filter(target_role="admin")
+        else:
+            # Vendor sees notifications for their ID that are NOT for admin
+            qs = Notification.objects.filter(vendor_id=user.id).exclude(target_role="admin")
 
         unread = self.request.query_params.get("unread")
         if unread == "true":
@@ -177,13 +181,13 @@ class MarkNotificationReadView(APIView):
     permission_classes = [IsAuthenticated]
 
     def patch(self, request, pk):
-        vendor_id = request.user.id
-
-        notification = get_object_or_404(
-            Notification,
-            id=pk,
-            vendor_id=vendor_id
-        )
+        user = request.user
+        if user.role == "admin":
+            notification = get_object_or_404(Notification, id=pk, target_role="admin")
+        else:
+            notification = get_object_or_404(Notification, id=pk, vendor_id=user.id)
+            if notification.target_role == "admin":
+                raise PermissionDenied("This notification is for admins only.")
 
         if not notification.is_read:
             notification.is_read = True
@@ -196,12 +200,11 @@ class UnreadNotificationCountView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        vendor_id = request.user.id
-
-        count = Notification.objects.filter(
-            vendor_id=vendor_id,
-            is_read=False
-        ).count()
+        user = request.user
+        if user.role == "admin":
+            count = Notification.objects.filter(target_role="admin", is_read=False).count()
+        else:
+            count = Notification.objects.filter(vendor_id=user.id, is_read=False).exclude(target_role="admin").count()
 
         return Response({"unread_count": count})
 

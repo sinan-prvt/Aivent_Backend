@@ -45,7 +45,8 @@ class VendorProfile(models.Model):
 
 
 class Notification(models.Model):
-    vendor_id = models.BigIntegerField(db_index=True)
+    vendor_id = models.BigIntegerField(db_index=True, null=True, blank=True)
+    target_role = models.CharField(max_length=20, db_index=True, null=True, blank=True)
 
     event_id = models.UUIDField(unique=True, db_index=True)
     event_type = models.CharField(max_length=100)
