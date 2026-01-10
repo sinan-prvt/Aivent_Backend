@@ -17,7 +17,6 @@ def load_catalog_documents():
         response.raise_for_status()
         categories = response.json()
     except Exception as e:
-        # IMPORTANT: never crash planner
         print(f"[AI PLANNER] Catalog unavailable: {e}")
         return documents
 

@@ -11,6 +11,7 @@ class ProductDTO(BaseModel):
     city: str = "Mumbai"
     is_available: bool = True
     stock: int = 1
+    image: str | None = None
 
 CATALOG_BASE = "http://catalog-service:8000/api/catalog"
 
@@ -32,13 +33,11 @@ def fetch_products(service: str) -> list:
         data = res.json()
         print(f"[PLANNER] Raw Response Data: {data}", flush=True)
 
-        # ✅ HANDLE DRF PAGINATION
         if isinstance(data, dict) and "results" in data:
             results = data["results"]
             print(f"[PLANNER] Extracted {len(results)} products from pagination", flush=True)
             return [ProductDTO(**p).dict() for p in results]
 
-        # fallback (non-paginated)
         if isinstance(data, list):
             print(f"[PLANNER] Extracted {len(data)} products from list", flush=True)
             return [ProductDTO(**p).dict() for p in data]

@@ -7,8 +7,8 @@ rules:
       budget: under_3_lakhs
       service: dj
     decision:
-      recommended: false
-      reason: "Budget constraint"
+      recommended: true
+      reason: "Budget DJ included"
 
   - id: WED_002
     priority: 90
@@ -54,3 +54,39 @@ rules:
     decision:
       recommended: true
       reason: "Full themed decoration"
+
+  - id: WED_007
+    priority: 80
+    conditions:
+      budget: under_3_lakhs
+      service: photography
+    decision:
+      recommended: true
+      reason: "Standard photography"
+
+  - id: WED_008
+    priority: 80
+    conditions:
+      budget: under_5_lakhs
+      service: photography
+    decision:
+      recommended: true
+      reason: "Premium photography & cinematic video"
+
+  - id: WED_009
+    priority: 70
+    conditions:
+      budget: under_3_lakhs
+      service: venue
+    decision:
+      recommended: true
+      reason: "Banquet or community hall"
+
+  - id: WED_010
+    priority: 70
+    conditions:
+      budget: under_5_lakhs
+      service: venue
+    decision:
+      recommended: true
+      reason: "Premium banquet hall or garden"

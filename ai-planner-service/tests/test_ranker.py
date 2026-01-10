@@ -11,40 +11,32 @@ from app.catalog import vendor_scores
 
 def test_value_score_calculation():
     """Test that value score combines price efficiency and reputation."""
-    # Cheap product, neutral vendor (0.5 reputation)
     score1 = calculate_value_score(price=100, budget_limit=1000, vendor_id=999)
     
-    # Expensive product, neutral vendor
     score2 = calculate_value_score(price=900, budget_limit=1000, vendor_id=999)
     
-    # Cheaper product should have higher value score
     assert score1 > score2, "Cheaper product should have higher value score"
 
 
 def test_reputation_affects_ranking():
     """Test that high-reputation vendor can beat a cheaper but unknown vendor."""
-    # Mock vendor scores for this test
-    vendor_scores.VENDOR_SCORES[100] = 0.9  # High reputation
-    vendor_scores.VENDOR_SCORES[200] = 0.2  # Low reputation
+    vendor_scores.VENDOR_SCORES[100] = 0.9
+    vendor_scores.VENDOR_SCORES[200] = 0.2 
     
     products = [
         {"id": 1, "name": "Cheap Low Rep", "price": 500, "vendor_id": 200, "category": 1},
         {"id": 2, "name": "Pricier High Rep", "price": 600, "vendor_id": 100, "category": 1},
     ]
     
-    # Defaults to balanced: High reputation vendor should rank first despite higher price
     ranked_balanced = rank_products(products, budget_limit=1000)
     assert ranked_balanced[0]["id"] == 2, "In balanced mode, high reputation should win"
     
-    # Priority: price → Cheap vendor should rank first
     ranked_price = rank_products(products, budget_limit=1000, priority="price")
     assert ranked_price[0]["id"] == 1, "In price mode, cheaper vendor should win"
     
-    # Priority: quality → High reputation vendor should rank first even more strongly
     ranked_quality = rank_products(products, budget_limit=1000, priority="quality")
     assert ranked_quality[0]["id"] == 2, "In quality mode, high reputation should win"
     
-    # Cleanup
     del vendor_scores.VENDOR_SCORES[100]
     del vendor_scores.VENDOR_SCORES[200]
 
