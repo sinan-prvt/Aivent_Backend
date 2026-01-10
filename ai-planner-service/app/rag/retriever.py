@@ -28,7 +28,6 @@ def get_retriever():
         _vectorstore = FAISS.from_documents(docs, embeddings)
 
     except Exception as e:
-        # CRITICAL: surface the real error in logs
         print("[AI PLANNER ERROR] Vectorstore init failed:", e)
         raise
 

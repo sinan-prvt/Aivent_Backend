@@ -8,6 +8,12 @@ BUDGET_POLICIES = {
         },
         "photography": {
             "max_package_price": 25000
+        },
+        "dj": {
+            "max_package_price": 15000
+        },
+        "venue": {
+            "max_package_price": 100000
         }
     },
     "under_5_lakhs": {
@@ -19,6 +25,12 @@ BUDGET_POLICIES = {
         },
         "photography": {
             "max_package_price": 40000
+        },
+        "dj": {
+            "max_package_price": 25000
+        },
+        "venue": {
+            "max_package_price": 150000
         }
     }
 }

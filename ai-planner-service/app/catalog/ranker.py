@@ -1,7 +1,6 @@
 from app.catalog.vendor_scores import get_vendor_score
 
 
-# Weight presets based on user priority
 WEIGHT_PRESETS = {
     "price": {"price": 0.9, "quality": 0.1},
     "balanced": {"price": 0.6, "quality": 0.4},
@@ -26,17 +25,14 @@ def calculate_value_score(
     """
     weights = WEIGHT_PRESETS.get(priority, WEIGHT_PRESETS["balanced"])
     
-    # Price efficiency: cheaper relative to budget = higher score
     if budget_limit > 0:
         price_ratio = price / budget_limit
         price_score = max(0.0, min(1.0, 1.0 - price_ratio))
     else:
         price_score = 0.5
     
-    # Vendor reputation (0.0 - 1.0)
     reputation_score = get_vendor_score(vendor_id)
     
-    # Combined with dynamic weights
     return (weights["price"] * price_score) + (weights["quality"] * reputation_score)
 
 
@@ -51,7 +47,6 @@ def rank_products(products: list, budget_limit: int, priority: str = "balanced")
     if not products:
         return []
 
-    # Calculate value score for each product
     scored = []
     for product in products:
         try:
@@ -68,7 +63,6 @@ def rank_products(products: list, budget_limit: int, priority: str = "balanced")
             "value_score": value_score,
         })
 
-    # Sort by value_score (descending) - higher value = better rank
     scored.sort(key=lambda x: x["value_score"], reverse=True)
 
     ranked = []
@@ -76,7 +70,6 @@ def rank_products(products: list, budget_limit: int, priority: str = "balanced")
         price = item["price"]
         product = item["product"]
 
-        # Determine tag based on price relative to budget
         if price <= budget_limit * 0.7:
             tag = "Budget Friendly"
         elif price <= budget_limit:

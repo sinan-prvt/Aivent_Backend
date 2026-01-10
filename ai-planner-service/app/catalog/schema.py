@@ -9,4 +9,4 @@ class ProductScore(BaseModel):
     vendor_id: int
 
     rank: int
-    tag: str  # Best Value | Budget Friendly | Premium
+    tag: str

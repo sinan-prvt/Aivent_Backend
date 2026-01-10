@@ -125,7 +125,6 @@ class CustomLoginView(TokenObtainPairView):
                     status=status.HTTP_403_FORBIDDEN
                 )
 
-            # FIRST TIME MFA SETUP
             if not user.totp_secret:
                 secret = pyotp.random_base32()
                 user.totp_secret = secret
@@ -155,7 +154,6 @@ class CustomLoginView(TokenObtainPairView):
                     "expires_in": 300
                 }, status=200)
 
-            # MFA VERIFY STEP
             challenge = MFAChallenge.objects.create(
                 user=user,
                 token=secrets.token_urlsafe(32),

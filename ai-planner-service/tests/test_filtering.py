@@ -2,10 +2,8 @@ import sys
 import os
 from unittest.mock import MagicMock
 
-# Add the project root to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-# Mocking external dependencies
 sys.modules["fastapi"] = MagicMock()
 sys.modules["pydantic"] = MagicMock()
 sys.modules["app.rag.retriever"] = MagicMock()
@@ -27,7 +25,6 @@ from app.api.planner import extract_plan_context, extract_context
 def test_city_detection():
     print("Testing city detection...")
     
-    # Test plan context extraction
     context = extract_plan_context("Plan a wedding in Mumbai under 3 lakhs")
     assert context["city"] == "Mumbai", f"Expected Mumbai, got {context['city']}"
     
@@ -37,7 +34,6 @@ def test_city_detection():
     context = extract_plan_context("Plan a wedding")
     assert context["city"] is None, f"Expected None, got {context['city']}"
 
-    # Test ask context extraction
     context = extract_context("I want a DJ in Bangalore under 3 lakhs")
     assert context["city"] == "Bangalore", f"Expected Bangalore, got {context['city']}"
     assert context["service"] == "dj", f"Expected dj, got {context['service']}"
@@ -54,12 +50,10 @@ def test_filtering_logic():
 
     print("Testing filtering logic...")
 
-    # Availability filter only
     filtered = [p for p in products if p.get("is_available", True) and p.get("stock", 0) > 0]
     assert len(filtered) == 2
     assert all(p["id"] in [1, 2] for p in filtered)
 
-    # City filter (Mumbai)
     target_city = "Mumbai"
     filtered_city = [p for p in filtered if p.get("city", "").lower() == target_city.lower()]
     assert len(filtered_city) == 1
