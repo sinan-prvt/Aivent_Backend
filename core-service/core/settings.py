@@ -8,7 +8,7 @@ SECRET_KEY = 'django-insecure-*)nw&q)4rsvaocgcbp6xoc#^re-1q&jr200*y3qimzzne3nq_p
 
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["core-service", "localhost", "127.0.0.1"]
 
 
 INSTALLED_APPS = [
@@ -106,6 +106,8 @@ REST_FRAMEWORK = {
     ),
 }
 
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
 
 SIMPLE_JWT = {
     "ALGORITHM": "RS256",
@@ -116,3 +118,20 @@ SIMPLE_JWT = {
 }
 
 ENABLE_ASYNC_EVENTS = False
+
+# RabbitMQ Settings
+RABBITMQ_HOST = "rabbitmq"
+
+# Celery Settings
+CELERY_BROKER_URL = "redis://redis:6379/0"
+CELERY_RESULT_BACKEND = "redis://redis:6379/0"
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+
+CELERY_BEAT_SCHEDULE = {
+    "cleanup-expired-bookings-every-5-minutes": {
+        "task": "bookings.tasks.cleanup_expired_bookings",
+        "schedule": 300.0,  # every 5 minutes
+    },
+}

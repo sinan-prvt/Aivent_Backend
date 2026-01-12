@@ -15,6 +15,15 @@ class Booking(models.Model):
     user_id = models.PositiveIntegerField()
     vendor_id = models.UUIDField()
     event_date = models.DateField()
+    
+    # Link to SubOrder in orders app
+    sub_order = models.OneToOneField(
+        'orders.SubOrder', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name="booking"
+    )
 
     status = models.CharField(
         max_length=20,
@@ -33,26 +42,35 @@ class Booking(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=["vendor_id", "event_date"],
-                name="unique_vendor_event_date"
+                condition=models.Q(status__in=["HOLD", "CONFIRMED"]),
+                name="unique_active_booking"
             )
         ]
 
     def confirm(self):
         if self.status != "HOLD":
-            raise ValidationError("Only HOLD bookings can be confirmed")
+            raise ValidationError(f"Cannot confirm booking in {self.status} status")
         self.status = "CONFIRMED"
         self.save(update_fields=["status"])
 
     def cancel(self, reason="system"):
-        if self.status != "HOLD":
-            raise ValidationError("Only HOLD bookings can be cancelled")
+        if self.status == "CANCELLED":
+            return
         self.status = "CANCELLED"
         self.save(update_fields=["status"])
 
 
 
 class IdempotencyKey(models.Model):
-    key = models.CharField(max_length=100, unique=True)
+    key = models.CharField(max_length=100)
     user_id = models.PositiveIntegerField()
     response = models.JSONField()
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["key", "user_id"],
+                name="unique_idempotency_per_user"
+            )
+        ]
