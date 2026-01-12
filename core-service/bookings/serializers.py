@@ -6,7 +6,9 @@ from rest_framework.permissions import IsAuthenticated
 
 
 class BookingCreateSerializer(serializers.ModelSerializer):
+    amount = serializers.DecimalField(max_digits=12, decimal_places=2, write_only=True)
     
     class Meta:
         model = Booking
-        fields = ["vendor_id", "event_date"]
+        fields = ["vendor_id", "event_date", "amount", "sub_order"]
+        read_only_fields = ["sub_order"]

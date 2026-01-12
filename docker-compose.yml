@@ -243,6 +243,8 @@ services:
     container_name: core-service
     depends_on:
       - core_db
+      - rabbitmq
+      - redis
     ports:
       - "8006:8000"
     volumes:
@@ -256,6 +258,34 @@ services:
         python manage.py migrate &&
         python manage.py runserver 0.0.0.0:8000
       "
+
+  core_celery_worker:
+    build:
+      context: ./core-service
+    command: celery -A core worker --loglevel=info
+    depends_on:
+      - core-service
+      - rabbitmq
+      - redis
+    volumes:
+      - ./core-service:/app
+      - ./auth-service/keys/public.pem:/app/keys/public.pem:ro
+    networks:
+      - aivent-net
+
+  core_celery_beat:
+    build:
+      context: ./core-service
+    command: celery -A core beat --loglevel=info
+    depends_on:
+      - core-service
+      - rabbitmq
+      - redis
+    volumes:
+      - ./core-service:/app
+      - ./auth-service/keys/public.pem:/app/keys/public.pem:ro
+    networks:
+      - aivent-net
 
 
   core_db:
@@ -271,6 +301,44 @@ services:
     networks:
       - aivent-net
 
+  payment-service:
+    build:
+      context: ./payment-service
+    container_name: payment-service
+    depends_on:
+      - payment_db
+      - rabbitmq
+      - redis
+    ports:
+      - "8007:8000"
+    volumes:
+      - ./payment-service:/app
+      - ./auth-service/keys/public.pem:/app/keys/public.pem:ro
+    networks:
+      - aivent-net
+    env_file:
+      - ./payment-service/.env
+    command: >
+      sh -c "
+        chmod +x ./wait-for-db.sh &&
+        ./wait-for-db.sh payment_db 5432 &&
+        python manage.py migrate &&
+        python manage.py runserver 0.0.0.0:8000
+      "
+
+  payment_db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: payment_db
+      POSTGRES_USER: payment
+      POSTGRES_PASSWORD: paymentpass
+    ports:
+      - "5440:5432"
+    volumes:
+      - payment_db_data:/var/lib/postgresql/data
+    networks:
+      - aivent-net
+
 networks:
   aivent-net:
 
@@ -280,3 +348,4 @@ volumes:
   catalog_db_data:
   chat_db_data:
   core_db_data:
+  payment_db_data:
