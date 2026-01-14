@@ -44,6 +44,8 @@ from corsheaders.defaults import default_headers
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
 ]
 
 CORS_ALLOW_HEADERS = list(default_headers) + [
@@ -130,6 +132,8 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
     "USER_ID_FIELD": "id",
     "USER_ID_CLAIM": "user_id",
+    "ISSUER": "aivent-auth",
+    "AUDIENCE": "aivent-services",
 }
 
 ENABLE_ASYNC_EVENTS = False
@@ -150,3 +154,6 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": 300.0,  # every 5 minutes
     },
 }
+
+# Internal Service URLs
+VENDOR_SERVICE_URL = "http://vendor-service:8000/api/vendors"

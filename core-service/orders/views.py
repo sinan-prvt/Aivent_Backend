@@ -10,8 +10,14 @@ from orders.serializers import MasterOrderSerializer, SubOrderSerializer
 from django.shortcuts import get_object_or_404
 
 class PaymentSuccessAPIView(APIView):
+    authentication_classes = []
+    permission_classes = []
+
     def post(self, request):
+        import logging
+        logger = logging.getLogger(__name__)
         master_order_id = request.data.get("order_id")
+        logger.info(f"Received payment success notification for order: {master_order_id}")
 
         if not master_order_id:
             return Response(
@@ -49,6 +55,53 @@ class PaymentSuccessAPIView(APIView):
             status=status.HTTP_200_OK
         )
 
+# In-memory cache for vendor names to avoid repeated internal API calls
+VENDOR_NAME_CACHE = {}
+
+def resolve_vendor_name(sub_order):
+    """
+    Attempts to resolve vendor name from vendor-service if it's the default placeholder.
+    Vendor name is stored on the linked Booking object.
+    """
+    if not hasattr(sub_order, 'booking') or not sub_order.booking:
+        return None
+
+    booking = sub_order.booking
+    if booking.vendor_name != "Aivent Partner" and booking.vendor_name:
+        return booking.vendor_name
+        
+    global VENDOR_NAME_CACHE
+    vid = str(sub_order.vendor_id)
+    
+    if vid in VENDOR_NAME_CACHE:
+        if VENDOR_NAME_CACHE[vid] and VENDOR_NAME_CACHE[vid] != booking.vendor_name:
+            booking.vendor_name = VENDOR_NAME_CACHE[vid]
+            booking.save(update_fields=["vendor_name"])
+        return VENDOR_NAME_CACHE[vid]
+
+    import requests
+    from django.conf import settings
+        
+    try:
+        url = f"{settings.VENDOR_SERVICE_URL}/public/vendors/{vid}/"
+        resp = requests.get(url, timeout=2)
+        if resp.status_code == 200:
+            data = resp.json()
+            business_name = data.get("business_name") or data.get("name")
+            if business_name:
+                booking.vendor_name = business_name
+                booking.save(update_fields=["vendor_name"])
+                
+                # Update cache
+                VENDOR_NAME_CACHE[vid] = business_name
+                return business_name
+    except Exception as e:
+        print(f"Error resolving vendor name for {vid}: {e}")
+        # Mark as failed in cache for the lifecycle of this process to avoid spamming
+        VENDOR_NAME_CACHE[vid] = booking.vendor_name
+        
+    return booking.vendor_name
+
 class UserOrderListAPIView(APIView):
     authentication_classes = [StatelessJWTAuthentication]
     permission_classes = [HasValidJWT]
@@ -56,6 +109,19 @@ class UserOrderListAPIView(APIView):
     def get(self, request):
         user_id = request.auth["user_id"]
         orders = MasterOrder.objects.filter(user_id=user_id).order_by("-created_at")
+        
+        # Self-healing: Sync totals for legacy orders
+        from django.db.models import Sum
+        for order in orders:
+            actual_total = order.sub_orders.exclude(status="CANCELLED").aggregate(Sum('amount'))['amount__sum'] or 0
+            if order.total_amount != actual_total:
+                order.total_amount = actual_total
+                order.save(update_fields=['total_amount'])
+            
+            # Sync vendor names
+            for sub in order.sub_orders.all():
+                resolve_vendor_name(sub)
+
         serializer = MasterOrderSerializer(orders, many=True)
         return Response(serializer.data)
 
@@ -67,10 +133,10 @@ class VendorOrderListAPIView(APIView):
         if request.auth.get("role") != "vendor" and request.auth.get("role") != "admin":
              return Response({"detail": "Vendor access required"}, status=403)
 
-        vendor_id = request.query_params.get("vendor_id")
-        if not vendor_id:
-             return Response([])
-
+        # Use the authenticated user's ID as the vendor_id
+        # Convert to string because vendor_id is now a CharField
+        vendor_id = str(request.auth.get("user_id"))
+        
         orders = SubOrder.objects.filter(vendor_id=vendor_id).order_by("-created_at")
         serializer = SubOrderSerializer(orders, many=True)
         return Response(serializer.data)
@@ -115,19 +181,21 @@ class SubOrderDeleteAPIView(APIView):
     authentication_classes = [StatelessJWTAuthentication]
     permission_classes = [HasValidJWT]
 
-    def delete(self, request, sub_order_id):
+    def delete(self, request, order_id, sub_order_id):
         user_id = request.auth["user_id"]
         
-        # Ensure the sub_order belongs to a master_order owned by the user
-        sub_order = get_object_or_404(SubOrder, id=sub_order_id, master_order__user_id=user_id)
+        # Ensure the sub_order belongs to the specified master_order owned by the user
+        sub_order = get_object_or_404(SubOrder, id=sub_order_id, master_order__id=order_id, master_order__user_id=user_id)
         
         with transaction.atomic():
             master_order = sub_order.master_order
             
             # Reduce total amount
-            # Only if not already cancelled? Amount is always there.
+            # If rejected, it was already subtracted in BookingRejection logic
             if sub_order.status != "CANCELLED":
                  master_order.total_amount -= sub_order.amount
+                 if master_order.total_amount < 0:
+                     master_order.total_amount = 0
             
             # Delete booking if exists
             if hasattr(sub_order, 'booking'):
@@ -155,4 +223,16 @@ class OrderDetailAPIView(APIView):
     def get(self, request, order_id):
         user_id = request.auth["user_id"]
         order = get_object_or_404(MasterOrder, id=order_id, user_id=user_id)
+        
+        # Self-healing: Sync total
+        from django.db.models import Sum
+        actual_total = order.sub_orders.exclude(status="CANCELLED").aggregate(Sum('amount'))['amount__sum'] or 0
+        if order.total_amount != actual_total:
+            order.total_amount = actual_total
+            order.save(update_fields=['total_amount'])
+            
+        # Sync vendor names
+        for sub in order.sub_orders.all():
+            resolve_vendor_name(sub)
+            
         return Response(MasterOrderSerializer(order).data)

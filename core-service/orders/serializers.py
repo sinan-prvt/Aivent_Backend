@@ -5,28 +5,35 @@ class SubOrderSerializer(serializers.ModelSerializer):
     vendor_name = serializers.SerializerMethodField()
     booking_status = serializers.SerializerMethodField()
     booking_details = serializers.SerializerMethodField()
+    booking_id = serializers.SerializerMethodField()
 
     class Meta:
         model = SubOrder
-        fields = ["id", "vendor_id", "vendor_name", "amount", "status", "booking_status", "created_at", "booking_details"]
+        fields = ["id", "vendor_id", "vendor_name", "amount", "status", "booking_status", "booking_id", "created_at", "booking_details"]
 
     def get_vendor_name(self, obj):
-        # In a real microservice, we might fetch this from vendor-service
-        # For now, just return the ID or a placeholder
-        return f"Vendor {obj.vendor_id}"
+        if hasattr(obj, "booking"):
+            return obj.booking.vendor_name
+        return "Aivent Partner"
 
     def get_booking_status(self, obj):
         if hasattr(obj, "booking"):
             return obj.booking.status
         return "N/A"
+
+    def get_booking_id(self, obj):
+        if hasattr(obj, "booking"):
+            return str(obj.booking.id)
+        return None
     
     def get_booking_details(self, obj):
         if hasattr(obj, "booking"):
             return {
                 "date": obj.booking.event_date,
-                "guests": getattr(obj.booking, "guests", "N/A"),
-                "product_title": "Product Details", # Placeholder
-                "event_type": "Event" # Placeholder
+                "guests": obj.booking.guests,
+                "product_title": obj.booking.product_name,
+                "event_type": obj.booking.event_type,
+                "category_name": obj.booking.category_name
             }
         return None
 

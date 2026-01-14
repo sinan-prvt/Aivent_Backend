@@ -48,7 +48,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True) 
     is_staff = models.BooleanField(default=False) 
     
-    totp_secret = models.CharField(max_length=64, blank=True, null=True)   # store base32 secret
+    totp_secret = models.CharField(max_length=64, blank=True, null=True)
     totp_enabled = models.BooleanField(default=False)  
 
     USERNAME_FIELD = "email" 

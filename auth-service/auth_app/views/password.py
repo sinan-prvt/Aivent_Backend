@@ -1,5 +1,5 @@
 from rest_framework.views import APIView
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny
 from drf_yasg.utils import swagger_auto_schema
 from ..serializers import (
     ResetPasswordSerializer
@@ -31,7 +31,10 @@ class ResetPasswordView(APIView):
         user = User.objects.filter(email=email).first()
         
         if not user:
-            return Response({"detail": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "User not found"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
 
         otp_obj = OTP.objects.filter(
             user=user, 
@@ -40,10 +43,16 @@ class ResetPasswordView(APIView):
         ).order_by("-created_at").first()
 
         if not otp_obj:
-            return Response({"detail": "OTP not verified"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "OTP not verified"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         user.set_password(new_password)
         user.save()
 
-        return Response({"detail": "Password reset successful"}, status=status.HTTP_200_OK)
+        return Response(
+            {"detail": "Password reset successful"}, 
+            status=status.HTTP_200_OK
+        )
 

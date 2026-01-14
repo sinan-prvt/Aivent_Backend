@@ -1,8 +1,6 @@
-# auth_app/admin.py
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import User, OTP
-from user_app.models import UserProfile
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
