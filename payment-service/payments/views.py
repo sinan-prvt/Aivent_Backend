@@ -42,6 +42,41 @@ class PaymentInitiateAPIView(APIView):
                 "note": "Existing payment returned"
             }, status=status.HTTP_200_OK)
 
+        # VALIDATION: Check Core Service status
+        try:
+            # We assume core-service is accessible at 'http://core-service:8000' within internal network
+            # Pass the user's token for authorization
+            auth_header = request.headers.get("Authorization")
+            response = requests.get(
+                f"http://core-service:8000/api/orders/{order_id}/",
+                headers={"Authorization": auth_header},
+                timeout=5
+            )
+            
+            if response.status_code != 200:
+                 logger.error(f"Core service failed: {response.status_code} - {response.text}")
+                 return Response({
+                     "detail": f"Could not verify order with core-service. Status: {response.status_code}, Response: {response.text}"
+                 }, status=400)
+            
+            order_data = response.json()
+            order_status = order_data.get("status")
+            
+            if order_status not in ["PARTIALLY_APPROVED", "PENDING", "APPROVED"]: # Added APPROVED just in case
+                 return Response(
+                     {"detail": f"Order cannot be paid in current status: {order_status}"},
+                     status=400
+                 )
+                 
+            # Use the TRUSTED amount from core-service
+            # Note: order_data['total_amount'] might be string
+            amount_str = order_data.get("total_amount")
+            amount = float(amount_str) # Override client amount
+            
+        except Exception as e:
+            logger.error(f"Validation failed: {e}")
+            return Response({"detail": "Order validation failed"}, status=500)
+
         # Razorpay expects amount in paise
         amount_paise = int(amount * 100)
         

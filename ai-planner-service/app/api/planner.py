@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
+import re
 
 from app.rag.retriever import get_retriever
 from app.rules.loader import load_rules
@@ -14,6 +15,7 @@ from app.rules.budget_calculator import calculate_budget_breakdown
 from app.llm.explainer import explain_service
 from app.catalog.ranker import rank_products
 from app.explanations.templates import RULE_BASED_EXPLANATIONS
+from app.llm.planner_llm import get_budget_distribution, select_best_product
 
 router = APIRouter()
 
@@ -27,6 +29,7 @@ class UserPreferences(BaseModel):
     city: str | None = None
     event_type: str | None = None
     budget: str | None = None
+    guests: int | None = 100
 
 
 class PlanRequest(BaseModel):
@@ -48,14 +51,31 @@ def extract_context(question: str):
     q = question.lower()
 
     event_type = None
-    if "wedding" in q:
-        event_type = "wedding"
+    event_types = ["wedding", "birthday", "corporate", "conference", "party", "launch", "executive", "retreat", "award", "ceremony", "meeting", "summit", "festival"]
+    for et in event_types:
+        if et in q:
+            event_type = et
+            break
 
-    budget = None
-    if "under 3" in q or "3 lakh" in q:
-        budget = "under_3_lakhs"
-    elif "under 5" in q or "5 lakh" in q:
-        budget = "under_5_lakhs"
+    budget_val = None
+    # Look for numbers (e.g., 50000, 3 lakh)
+    match = re.search(r'(\d+)\s*(lakh|k|thousand)?', q)
+    if match:
+        val = int(match.group(1))
+        unit = match.group(2)
+        if unit == "lakh":
+            budget_val = val * 100000
+        elif unit == "k":
+            budget_val = val * 1000
+        else:
+            budget_val = val
+
+    budget_key = None
+    if budget_val:
+        if budget_val <= 300000:
+            budget_key = "under_3_lakhs"
+        elif budget_val <= 500000:
+            budget_key = "under_5_lakhs"
 
     service = extract_service_from_question(q)
 
@@ -68,273 +88,131 @@ def extract_context(question: str):
 
     return {
         "event_type": event_type,
-        "budget": budget,
+        "budget": budget_key,
+        "budget_val": budget_val,
         "service": service,
         "city": city
     }
 
 def extract_plan_context(question: str):
-    q = question.lower()
-
-    event_type = None
-    if "wedding" in q:
-        event_type = "wedding"
-
-    budget = None
-    if "under 3" in q or "3 lakh" in q:
-        budget = "under_3_lakhs"
-    elif "under 5" in q or "5 lakh" in q:
-        budget = "under_5_lakhs"
-
-    city = None
-    cities = ["mumbai", "delhi", "bangalore", "pune", "hyderabad", "chennai", "kolkata"]
-    for c in cities:
-        if c in q:
-            city = c.capitalize()
-            break
-
-    return {
-        "event_type": event_type,
-        "budget": budget,
-        "city": city
-    }
+    return extract_context(question)
 
 
 @router.post("/ask")
 def ask(payload: PlanRequest):
-    context = extract_context(payload.question)
-    priority = payload.preferences.priority if payload.preferences else "balanced"
-    priority_city = payload.preferences.city if payload.preferences else None
-
-    if not context["event_type"]:
-        context["event_type"] = (payload.preferences.event_type if payload.preferences else None) or "wedding"
-
-    if not context["budget"]:
-        context["budget"] = (payload.preferences.budget if payload.preferences else None) or "under_3_lakhs"
-
-    state_context = {
-        "event_type": context["event_type"],
-        "budget": context["budget"]
-    }
-
-    if not context["service"]:
-        if context["event_type"] and context["budget"]:
-            total = BUDGET_TOTALS.get(context["budget"], 0)
-            dist = BUDGET_DISTRIBUTION.get(context["event_type"], {}).get(context["budget"], {})
-            
-            summary_parts = [f"I can help you plan your {context['event_type']} for ₹{total:,}!"]
-            summary_parts.append("\nHere's a recommended budget breakdown:")
-            
-            for s, pct in dist.items():
-                amt = (pct / 100) * total
-                summary_parts.append(f"• **{s.capitalize()}**: ₹{int(amt):,}")
-            
-            summary_parts.append("\nWhich service should we find products for first? (e.g., 'Find a DJ')")
-            
+    # FULLY RESTORED RAG LOGIC FOR CHATBOT
+    try:
+        retriever = get_retriever()
+        docs = retriever.invoke(payload.question)
+        if docs:
             return {
-                "explanation": "\n".join(summary_parts),
-                "products": [],
-                "context": state_context,
-                "suggestions": [f"Find {s}" for s in PLANNABLE_SERVICES[:3]]
+                "answer": docs[0].page_content,
+                "suggestions": ["Find a DJ", "Plan a Wedding", "Check Catering"]
             }
-
-        return {
-            "error": "Service not identified",
-            "message": "I can help you find DJs, caterers, or decorators. What's on your mind?",
-            "context": state_context,
-            "suggestions": ["Plan a Wedding", "Find a DJ", "Check Catering", "Decor ideas"]
-        }
-
-    rules = load_rules(context["event_type"])
-
-    if not rules:
-        return {
-            "error": "No rules defined for this event type",
-            "event_type": context["event_type"],
-            "suggestions": ["Try 'Wedding'", "Help me plan"]
-        }
-
-    decision = evaluate_rules(
-        rules,
-        {
-            "budget": context["budget"],
-            "service": context["service"],
-        },
-    )
-
-    if decision is not None:
-        products = []
-
-        if decision["recommended"]:
-            products = fetch_products(context["service"])
-
-            products = [
-                p for p in products 
-                if p.get("is_available", True) and p.get("stock", 0) > 0
-            ]
-
-
-            policy = (
-                BUDGET_POLICIES
-                .get(context["budget"], {})
-                .get(context["service"])
-            )
-
-            products = filter_products_by_budget(products, policy)
-
-            if products:
-                limit = (
-                    policy.get("max_price_per_plate")
-                    or policy.get("max_package_price")
-                )
-                if limit:
-                    products = rank_products(products, limit, priority)
-
-        all_services = ["dj", "catering", "photography", "decoration", "venue"]
-        suggestions = [f"Find {s}" for s in all_services if s != context["service"]]
-        if not products:
-            suggestions.insert(0, f"Try different {context['service']}")
-
-        return {
-            "service": context["service"],
-            "recommended": decision["recommended"],
-            "reason": decision["reason"],
-            "products": products,
-            "context": state_context,
-            "suggestions": suggestions[:3]
-        }
-
-    retriever = get_retriever()
-    docs = retriever.invoke(payload.question)
+    except Exception as e:
+        print(f"[RAG ERROR] Chatbot failed: {e}", flush=True)
 
     return {
-        "answer": "No strict rule matched. Showing general guidance only.",
-        "context_info": docs[0].page_content if docs else None,
-        "context": state_context,
-        "suggestions": ["Find a DJ", "Catering options", "Plan a Wedding"]
+        "answer": "I'm here to help you plan your event! Ask me about weddings, birthdays, or find specific services like DJs and caterers.",
+        "suggestions": ["Plan a Wedding", "Find a DJ", "Decor ideas"]
     }
-
-
 
 
 @router.post("/plan")
 def plan(payload: PlanRequest, explain: bool = False):
-    context = extract_plan_context(payload.question)
-    priority = payload.preferences.priority if payload.preferences else "balanced"
-    priority_city = payload.preferences.city if payload.preferences else None
-
-    if not context["event_type"] or not context["budget"]:
-        return {"error": "Event type or budget not identified"}
-
-    rules = load_rules(context["event_type"])
-    if not rules:
-        return {"error": "No rules defined for this event type"}
-
-    plan = []
-
-    # 1️⃣ BUILD PLAN
-    for service in PLANNABLE_SERVICES:
-        decision = evaluate_rules(
-            rules,
-            {
-                "budget": context["budget"],
-                "service": service,
-            }
-        )
-
-        if decision is None:
-            continue
-
-        products = []
-        if decision["recommended"]:
-            products = fetch_products(service)
-            print(f"[DEBUG] Raw products for {service}:", products)
-
-            products = [
-                p for p in products 
-                if p.get("is_available", True) and p.get("stock", 0) > 0
-            ]
-
-
-            policy = (
-                BUDGET_POLICIES
-                .get(context["budget"], {})
-                .get(service)
-            )
-
-            products = filter_products_by_budget(products, policy)
-
-            if policy:
-                limit = (
-                    policy.get("max_price_per_plate")
-                    or policy.get("max_package_price")
-                )
-
-                if limit:
-                    products = rank_products(products, limit, priority)
-
-        best_product = products[0] if products else None
-        alternatives = products[1:3] if len(products) > 1 else []
-
-        plan.append({
-            "service": service,
-            "recommended": decision["recommended"],
-            "reason": decision["reason"],
-            "recommended_product": best_product,
-            "alternatives": alternatives,
-        })
-    recommended_services = [
-        item["service"]
-        for item in plan
-        if item["recommended"]
-    ]
-
-    total_budget = BUDGET_TOTALS.get(context["budget"])
-
-    distribution = (
-        BUDGET_DISTRIBUTION
-        .get(context["event_type"], {})
-        .get(context["budget"], {})
-    )
-
-    budget_breakdown = calculate_budget_breakdown(
-        total_budget=total_budget,
-        distribution=distribution,
-        recommended_services=recommended_services,
-    )
-
-    suggestions = []
-    if context["budget"] == "under_3_lakhs":
-        suggestions.append("Upgrade to 5 Lakhs")
-    else:
-        suggestions.append("Check 3 Lakhs Plan")
-    suggestions.extend(["Find a DJ", "Catering details", "Photography"])
-
-    response = {
-        "event_type": context["event_type"],
-        "budget": context["budget"],
-        "budget_total": total_budget,
-        "budget_breakdown": budget_breakdown,
-        "plan": plan,
-        "suggestions": suggestions[:3]
-    }
-
-    if explain:
-        explanations = {}
-
-        for item in plan:
+    try:
+        print(f"[PLANNER] Starting plan generation for: {payload.question}", flush=True)
+        context = extract_plan_context(payload.question)
+        print(f"[PLANNER] Extracted context: {context}", flush=True)
+        
+        event_type = context["event_type"] or (payload.preferences.event_type if payload.preferences else "Wedding")
+        
+        # Try to get budget from question, then preferences
+        total_budget = context["budget_val"]
+        if not total_budget and payload.preferences and payload.preferences.budget:
             try:
-                service = item["service"]
-                recommended = item["recommended"]
+                total_budget = float(payload.preferences.budget)
+            except ValueError:
+                total_budget = BUDGET_TOTALS.get(payload.preferences.budget, 300000)
+        
+        if not total_budget:
+            total_budget = 300000
 
-                explanations[service] = (
-                    RULE_BASED_EXPLANATIONS
-                    .get(service, {})
-                    .get(recommended, "No explanation available.")
+        guests = payload.preferences.guests if payload.preferences and payload.preferences.guests else 100
+        print(f"[PLANNER] Params: type={event_type}, budget={total_budget}, guests={guests}", flush=True)
+        
+        # 1️⃣ GET AI BUDGET CATEGORIZATION (PROMPTING PHASE)
+        distribution = get_budget_distribution(event_type, total_budget)
+        print(f"[PLANNER] AI distribution: {distribution}", flush=True)
+        
+        plan_items = []
+        recommended_services = []
+
+        # 2️⃣ FETCH AND SELECT PRODUCTS (PROMPTING PHASE)
+        for raw_service, percent in distribution.items():
+            service = raw_service.strip() # Strip any spaces from LLM
+            if percent <= 0:
+                continue
+                
+            category_budget = (percent / 100) * total_budget
+            print(f"[PLANNER] Service '{service}': budget={category_budget}", flush=True)
+            products = fetch_products(service)
+            
+            # Filter by stock/availability
+            products = [p for p in products if p.get("is_available", True) and p.get("stock", 0) > 0]
+            print(f"[PLANNER] Service '{service}': fetched {len(products)} available products", flush=True)
+            
+            # Filter by category budget (relaxed limit - 2x budget)
+            filtered_products = [p for p in products if float(p.get("price", 0)) <= category_budget * 2.0]
+            print(f"[PLANNER] Service '{service}': {len(filtered_products)} products within budget limit", flush=True)
+
+            # If no products within budget, use ALL available products but tell LLM to be budget conscious
+            target_products = filtered_products if filtered_products else products
+
+            if target_products:
+                # Use LLM to pick the best one
+                print(f"[PLANNER] Requesting LLM selection for '{service}'...", flush=True)
+                selection = select_best_product(
+                    event_type=event_type,
+                    total_budget=total_budget,
+                    guests=guests,
+                    category=service,
+                    category_budget=category_budget,
+                    products=target_products
                 )
-            except Exception:
-                explanations[item["service"]] = "Explanation unavailable."
+                
+                if selection:
+                    recommended_services.append(service)
+                    plan_items.append({
+                        "service": service,
+                        "recommended": True,
+                        "reason": selection["reason"],
+                        "recommended_product": selection["product"],
+                        "alternatives": [p for p in target_products if p['id'] != selection['product']['id']][:2],
+                        "ai_pick": True
+                    })
+            else:
+                print(f"[PLANNER] No suitable products found for '{service}'", flush=True)
 
-        response["explanation"] = explanations
+        # 3️⃣ CALCULATE FINAL BUDGET BREAKDOWN
+        budget_breakdown = {}
+        for service, percent in distribution.items():
+            budget_breakdown[service] = {
+                "percent": percent,
+                "amount": int((percent / 100) * total_budget)
+            }
 
-    return response
+        print(f"[PLANNER] Plan generation complete. Items: {len(plan_items)}", flush=True)
+        return {
+            "event_type": event_type,
+            "budget_val": total_budget,
+            "guests": guests,
+            "budget_breakdown": budget_breakdown,
+            "plan": plan_items,
+            "suggestions": ["Add Photography", "Change Venue", "Review Plan"]
+        }
+    except Exception as e:
+        import traceback
+        print(f"[PLANNER ERROR] Exception in plan endpoint: {e}", flush=True)
+        traceback.print_exc()
+        return {"error": "Internal server error during plan generation", "details": str(e)}

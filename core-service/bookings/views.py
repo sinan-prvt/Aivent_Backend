@@ -46,12 +46,19 @@ class BookingCreateAPIView(APIView):
             with transaction.atomic():
                 from orders.models import MasterOrder, SubOrder
                 
-                # 1. Create MasterOrder (one master per booking for now, can be expanded for cart)
-                master_order = MasterOrder.objects.create(
-                    user_id=user_id,
-                    total_amount=amount,
-                    status="PENDING"
-                )
+                # 1. Create or Get MasterOrder
+                master_order_id = request.data.get("master_order_id")
+                if master_order_id:
+                    master_order = get_object_or_404(MasterOrder, id=master_order_id, user_id=user_id)
+                    master_order.total_amount += amount
+                    master_order.status = "AWAITING_APPROVAL" # Reset to waiting since we added a new pending item
+                    master_order.save()
+                else:
+                    master_order = MasterOrder.objects.create(
+                        user_id=user_id,
+                        total_amount=amount,
+                        status="AWAITING_APPROVAL"
+                    )
                 
                 # 2. Create SubOrder
                 sub_order = SubOrder.objects.create(
@@ -108,3 +115,49 @@ class BookingConfirmAPIView(APIView):
             )
 
         return Response({"status": "CONFIRMED"}, status=status.HTTP_200_OK)
+
+
+from orders.services import update_master_order_status
+
+class VendorBookingApprovalAPIView(APIView):
+    authentication_classes = [StatelessJWTAuthentication]
+    permission_classes = [HasValidJWT]
+
+    def post(self, request, booking_id):
+        # TODO: Strict Vendor ID check against request.auth
+        booking = get_object_or_404(Booking, id=booking_id)
+        
+        if booking.status != "AWAITING_APPROVAL":
+             return Response({"detail": "Booking is not awaiting approval"}, status=400)
+
+        with transaction.atomic():
+            booking.status = "APPROVED"
+            booking.save(update_fields=["status"])
+            
+            # Check Master Order status
+            update_master_order_status(booking.sub_order.master_order)
+
+        return Response({"status": "APPROVED"})
+
+
+class VendorBookingRejectionAPIView(APIView):
+    authentication_classes = [StatelessJWTAuthentication]
+    permission_classes = [HasValidJWT]
+
+    def post(self, request, booking_id):
+        booking = get_object_or_404(Booking, id=booking_id)
+        
+        if booking.status != "AWAITING_APPROVAL":
+             return Response({"detail": "Booking is not awaiting approval"}, status=400)
+
+        with transaction.atomic():
+            booking.status = "REJECTED"
+            booking.save(update_fields=["status"])
+            
+            booking.sub_order.status = "CANCELLED"
+            booking.sub_order.save(update_fields=["status"])
+            
+            # Check Master Order status
+            update_master_order_status(booking.sub_order.master_order)
+
+        return Response({"status": "REJECTED"})

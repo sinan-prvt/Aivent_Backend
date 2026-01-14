@@ -29,10 +29,13 @@ class Booking(models.Model):
         max_length=20,
         choices=[
             ("HOLD", "HOLD"),
+            ("AWAITING_APPROVAL", "AWAITING_APPROVAL"),
+            ("APPROVED", "APPROVED"),
+            ("REJECTED", "REJECTED"),
             ("CONFIRMED", "CONFIRMED"),
             ("CANCELLED", "CANCELLED"),
         ],
-        default="HOLD",
+        default="AWAITING_APPROVAL",
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
