@@ -4,13 +4,17 @@
 set -e
 
 host="$1"
-shift
+port="$2"
+shift 2
 cmd="$@"
 
-until nc -z "$host" 5432; do
-  >&2 echo "Waiting for PostgreSQL at $host:5432 ..."
+until nc -z "$host" "$port"; do
+  >&2 echo "Waiting for PostgreSQL at $host:$port ..."
   sleep 1
 done
 
 >&2 echo "Postgres is up. Enable Watch"
-exec $cmd
+
+if [ -n "$cmd" ]; then
+    exec $cmd
+fi

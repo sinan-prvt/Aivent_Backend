@@ -25,7 +25,7 @@ def fetch_products(service: str) -> list:
 
     try:
         print(f"[PLANNER] Fetching products from: {url}", flush=True)
-        res = requests.get(url, timeout=3)
+        res = requests.get(url, timeout=10)
         print(f"[PLANNER] Status: {res.status_code}", flush=True)
         
         res.raise_for_status()

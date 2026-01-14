@@ -11,6 +11,8 @@ class MasterOrder(models.Model):
         max_length=20,
         choices=[
             ("PENDING", "PENDING"),
+            ("AWAITING_APPROVAL", "AWAITING_APPROVAL"),
+            ("PARTIALLY_APPROVED", "PARTIALLY_APPROVED"),
             ("PAID", "PAID"),
             ("FAILED", "FAILED"),
         ],

@@ -1,19 +1,15 @@
-from django.db import transaction
 from orders.models import MasterOrder
 
-@transaction.atomic
-def handle_payment_success(master_order_id):
-    master = MasterOrder.objects.select_for_update().get(id=master_order_id)
-
-    if master.status == "PAID":
-        return
-
-    master.status = "PAID"
-    master.save(update_fields=["status"])
-
-    for sub in master.sub_orders.all():
-        sub.status = "PAID"
-        sub.save(update_fields=["status"])
-
-        if hasattr(sub, "booking"):
-            sub.booking.confirm()
+def update_master_order_status(master_order):
+    sub_orders = master_order.sub_orders.all()
+    # Check if any linked booking is still AWAITING_APPROVAL
+    pending = False
+    for sub in sub_orders:
+        if hasattr(sub, 'booking') and sub.booking.status == 'AWAITING_APPROVAL':
+            pending = True
+            break
+            
+    if not pending:
+        # All decided
+        master_order.status = "PARTIALLY_APPROVED"
+        master_order.save(update_fields=["status"])
