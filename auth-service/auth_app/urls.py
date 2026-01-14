@@ -18,7 +18,6 @@ from .views.password import ResetPasswordView
 from .views.social import GoogleLoginView, MicrosoftAuthView
 from .views.health import health_check
 from .views.verify_mfa import VerifyMFAView
-# from .views.internal_vendor_approve import InternalVendorApprove
 from .views.internal_users import InternalUserByEmail
 
 urlpatterns = [
@@ -49,7 +48,4 @@ urlpatterns = [
     path("verify-mfa/", VerifyMFAView.as_view()),
 
     path("internal/users/by-email/", InternalUserByEmail.as_view()),
-
-    # path("internal/vendor/approve/", InternalVendorApprove.as_view(), name="internal-vendor-approve"),
-
 ]

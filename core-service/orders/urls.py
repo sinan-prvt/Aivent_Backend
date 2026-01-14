@@ -16,7 +16,7 @@ urlpatterns = [
     # User API
     path('my-orders/', UserOrderListAPIView.as_view(), name='user-order-list'),
     path('<uuid:order_id>/', OrderDetailAPIView.as_view(), name='order-detail'),
-    path('items/<uuid:sub_order_id>/', SubOrderDeleteAPIView.as_view(), name='order-item-delete'),
+    path('<uuid:order_id>/items/<uuid:sub_order_id>/', SubOrderDeleteAPIView.as_view(), name='order-item-delete'),
     
     # Vendor API
     path('vendor-orders/', VendorOrderListAPIView.as_view(), name='vendor-order-list'),

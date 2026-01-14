@@ -29,9 +29,27 @@ class PaymentInitiateAPIView(APIView):
         amount = serializer.validated_data["amount"]
         currency = serializer.validated_data["currency"]
         
-        # 0. Check if payment already exists for this order
-        existing_payment = Payment.objects.filter(order_id=order_id).first()
-        if existing_payment:
+        # 0. Check if a successful payment already exists
+        successful_payment = Payment.objects.filter(
+            order_id=order_id, 
+            status__in=["PAID", "COD_CONFIRMED"]
+        ).first()
+        
+        if successful_payment:
+            return Response({
+                "platform_order_id": str(order_id),
+                "status": successful_payment.status,
+                "note": "Order already paid/confirmed"
+            }, status=status.HTTP_200_OK)
+
+        # 1. Check for an existing CREATED payment to reuse
+        existing_payment = Payment.objects.filter(
+            order_id=order_id, 
+            status="CREATED",
+            payment_method="ONLINE"
+        ).first()
+        
+        if existing_payment and existing_payment.razorpay_order_id:
             return Response({
                 "platform_order_id": str(order_id),
                 "razorpay_order_id": existing_payment.razorpay_order_id,
@@ -39,7 +57,7 @@ class PaymentInitiateAPIView(APIView):
                 "amount": str(existing_payment.amount),
                 "currency": existing_payment.currency,
                 "status": existing_payment.status,
-                "note": "Existing payment returned"
+                "note": "Existing payment record reused"
             }, status=status.HTTP_200_OK)
 
         # VALIDATION: Check Core Service status
@@ -62,7 +80,7 @@ class PaymentInitiateAPIView(APIView):
             order_data = response.json()
             order_status = order_data.get("status")
             
-            if order_status not in ["PARTIALLY_APPROVED", "PENDING", "APPROVED"]: # Added APPROVED just in case
+            if order_status not in ["PARTIALLY_APPROVED", "PENDING", "APPROVED", "FULLY_APPROVED"]:
                  return Response(
                      {"detail": f"Order cannot be paid in current status: {order_status}"},
                      status=400
@@ -112,6 +130,60 @@ class PaymentInitiateAPIView(APIView):
                 {"detail": error_detail},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class PaymentCODAPIView(APIView):
+    """
+    Handles Cash On Delivery (COD) payment selection.
+    Immediately confirms the order in the core-service.
+    """
+    def post(self, request):
+        serializer = PaymentInitiateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        order_id = serializer.validated_data["order_id"]
+        amount = serializer.validated_data["amount"]
+        currency = serializer.validated_data["currency"]
+
+        # Check if already paid
+        existing_paid = Payment.objects.filter(
+            order_id=order_id, 
+            status__in=["PAID", "COD_CONFIRMED"]
+        ).exists()
+        
+        if existing_paid:
+            return Response({"detail": "Order already processed"}, status=400)
+
+        # Create COD Payment record
+        payment = Payment.objects.create(
+            order_id=order_id,
+            amount=amount,
+            currency=currency,
+            payment_method="COD",
+            status="COD_CONFIRMED"
+        )
+
+        # Notify core-service
+        try:
+            core_service_url = getattr(settings, "CORE_SERVICE_URL", "http://core-service:8000")
+            resp = requests.post(
+                f"{core_service_url}/internal/payments/success/",
+                json={"order_id": str(order_id)},
+                timeout=5,
+            )
+            resp.raise_for_status()
+        except Exception as e:
+            logger.error(f"Failed to notify core-service about COD: {e}")
+            return Response(
+                {"detail": f"COD Confirmed locally, but failed to update order service: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        return Response({
+            "status": "COD_CONFIRMED",
+            "order_id": str(order_id),
+            "payment_method": "COD"
+        }, status=status.HTTP_201_CREATED)
 
 
 class PaymentMockSuccessAPIView(APIView):

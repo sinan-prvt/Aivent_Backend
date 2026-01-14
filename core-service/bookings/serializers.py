@@ -10,5 +10,9 @@ class BookingCreateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Booking
-        fields = ["vendor_id", "event_date", "amount", "sub_order"]
+        fields = [
+            "vendor_id", "vendor_name", "product_name", 
+            "category_name", "event_type", "guests", 
+            "event_date", "amount", "sub_order"
+        ]
         read_only_fields = ["sub_order"]

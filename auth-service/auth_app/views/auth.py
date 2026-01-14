@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
 from auth_app.utils import qrcode_base64_from_uri
-from rest_framework import status, permissions, serializers
+from rest_framework import status, serializers
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from ..serializers import (
@@ -9,6 +9,7 @@ from ..serializers import (
     LogoutSerializer,
     ChangePasswordSerializer,
     CustomTokenObtainPairSerializer,
+    MeSerializer,
 )
 from drf_yasg.utils import swagger_auto_schema
 from auth_app.core.captcha_utils import (
@@ -31,7 +32,7 @@ from auth_app.models import MFAChallenge
 from django.utils import timezone
 from datetime import timedelta
 import secrets
-from rest_framework_simplejwt.tokens import AccessToken
+
 
 User = get_user_model()
 
@@ -41,23 +42,8 @@ logger = logging.getLogger(__name__)
 class MeView(APIView): 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, *args, **kwargs): 
-        user = request.user
-
-        payload = { 
-            "id": str(getattr(user, "id", "")), 
-            "username": getattr(user, "username", "") or "", 
-            "email": getattr(user, "email", "") or "", 
-            "full_name": getattr(user, "full_name", "") or "", 
-            "phone": getattr(user, "phone", "") or None, 
-            "role": getattr(user, "role", "customer"), 
-            "email_verified": bool(getattr(user, "email_verified", False)), 
-            "vendor_approved": bool(getattr(user, "vendor_approved", False)), 
-            "is_active": bool(getattr(user, "is_active", False)), 
-            "date_joined": (getattr(user, "date_joined", None).isoformat() 
-                if getattr(user, "date_joined", None) else None), 
-            }
-        return Response(payload, status=200)
+    def get(self, request):
+        return Response(MeSerializer(request.user).data)
 
 
 
@@ -107,14 +93,20 @@ class CustomLoginView(TokenObtainPairView):
                 increment_failed_attempts(key)
             except Exception:
                 pass
-            return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                e.detail, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         
         user = getattr(serializer, "_validated_user", None)
         reset_failed_attempts(key)
 
         if not user:
-            return Response({"detail":"Invalid Credentials"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail":"Invalid Credentials"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
 
         if user.role == "vendor":
@@ -152,7 +144,7 @@ class CustomLoginView(TokenObtainPairView):
                     "qr_code": qr_code,
                     "mfa_token": challenge.token,
                     "expires_in": 300
-                }, status=200)
+                }, status=status.HTTP_200_OK)
 
             challenge = MFAChallenge.objects.create(
                 user=user,
@@ -166,7 +158,7 @@ class CustomLoginView(TokenObtainPairView):
                 "role": "vendor",
                 "mfa_token": challenge.token,
                 "expires_in": 300
-            }, status=200)
+            }, status=status.HTTP_200_OK)
 
         
         tokens_resp = super().post(request, *args, **kwargs)
@@ -228,11 +220,20 @@ class LogoutView(APIView):
             token = RefreshToken(refresh_token)
             token.blacklist()
         except TokenError:
-            return Response({"detail": "Invalid refresh token"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Invalid refresh token"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
         except Exception:
-            return Response({"detail": "Could not blacklist token"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Could not blacklist token"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        return Response({"detail": "Logged out successfully"}, status=status.HTTP_200_OK)
+        return Response(
+            {"detail": "Logged out successfully"}, 
+            status=status.HTTP_200_OK
+        )
 
 
 class LogoutAllView(APIView):
@@ -248,7 +249,10 @@ class LogoutAllView(APIView):
 
         for t in tokens:
             BlacklistedToken.objects.get_or_create(token=t)
-        return Response({"detail": "All tokens revoked"}, status=status.HTTP_200_OK)
+        return Response(
+            {"detail": "All tokens revoked"}, 
+            status=status.HTTP_200_OK
+        )
 
 
 class ChangePasswordView(APIView):
@@ -276,5 +280,8 @@ class ChangePasswordView(APIView):
         user.set_password(new)
         user.save()
 
-        return Response({"detail": "Password changed successfully"}, status=200)
+        return Response(
+            {"detail": "Password changed successfully"}, 
+            status=status.HTTP_200_OK
+        )
    

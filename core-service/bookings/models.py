@@ -13,7 +13,12 @@ class Booking(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     user_id = models.PositiveIntegerField()
-    vendor_id = models.UUIDField()
+    vendor_id = models.CharField(max_length=100)
+    vendor_name = models.CharField(max_length=255, default="Aivent Partner")
+    product_name = models.CharField(max_length=255, default="Event Service")
+    category_name = models.CharField(max_length=100, default="Service")
+    event_type = models.CharField(max_length=100, default="Event")
+    guests = models.CharField(max_length=50, default="N/A")
     event_date = models.DateField()
     
     # Link to SubOrder in orders app
@@ -51,7 +56,7 @@ class Booking(models.Model):
         ]
 
     def confirm(self):
-        if self.status != "HOLD":
+        if self.status not in ["HOLD", "APPROVED"]:
             raise ValidationError(f"Cannot confirm booking in {self.status} status")
         self.status = "CONFIRMED"
         self.save(update_fields=["status"])

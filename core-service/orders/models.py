@@ -13,6 +13,7 @@ class MasterOrder(models.Model):
             ("PENDING", "PENDING"),
             ("AWAITING_APPROVAL", "AWAITING_APPROVAL"),
             ("PARTIALLY_APPROVED", "PARTIALLY_APPROVED"),
+            ("FULLY_APPROVED", "FULLY_APPROVED"),
             ("PAID", "PAID"),
             ("FAILED", "FAILED"),
         ],
@@ -33,7 +34,7 @@ class SubOrder(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     master_order = models.ForeignKey(MasterOrder, related_name="sub_orders", on_delete=models.CASCADE)
     
-    vendor_id = models.UUIDField(db_index=True)
+    vendor_id = models.CharField(max_length=100, db_index=True)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     
     status = models.CharField(

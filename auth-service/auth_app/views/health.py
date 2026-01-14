@@ -2,7 +2,6 @@ from django.http import JsonResponse
 from django.db import connection
 from django.core.cache import cache
 import pika
-from celery.result import AsyncResult
 from django.conf import settings
 
 def health_check(request):

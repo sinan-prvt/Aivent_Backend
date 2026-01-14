@@ -1,4 +1,3 @@
-# auth_app/urls_admin.py
 from django.urls import path
 from .views.admin import (
     AdminUserListView,

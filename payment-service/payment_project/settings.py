@@ -37,6 +37,8 @@ MIDDLEWARE = [
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -83,6 +85,10 @@ SIMPLE_JWT = {
     "ALGORITHM": "RS256",
     "VERIFYING_KEY": open(BASE_DIR / "keys/public.pem").read() if os.path.exists(BASE_DIR / "keys/public.pem") else "",
     "AUTH_HEADER_TYPES": ("Bearer",),
+    "USER_ID_FIELD": "id",
+    "USER_ID_CLAIM": "user_id",
+    "ISSUER": "aivent-auth",
+    "AUDIENCE": "aivent-services",
 }
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

@@ -69,9 +69,15 @@ class BookingCreateAPIView(APIView):
                 )
                 
                 # 3. Create Booking linked to SubOrder
+                # We explicitly pass fields from validated_data to ensure they are persisted
                 booking = serializer.save(
                     user_id=user_id,
-                    sub_order=sub_order
+                    sub_order=sub_order,
+                    vendor_name=serializer.validated_data.get("vendor_name"),
+                    product_name=serializer.validated_data.get("product_name"),
+                    category_name=serializer.validated_data.get("category_name"),
+                    event_type=serializer.validated_data.get("event_type"),
+                    guests=serializer.validated_data.get("guests")
                 )
 
                 response_data = {
@@ -124,9 +130,12 @@ class VendorBookingApprovalAPIView(APIView):
     permission_classes = [HasValidJWT]
 
     def post(self, request, booking_id):
-        # TODO: Strict Vendor ID check against request.auth
+        vendor_id = request.auth["user_id"]
         booking = get_object_or_404(Booking, id=booking_id)
         
+        if str(booking.vendor_id) != str(vendor_id):
+            return Response({"detail": "This booking does not belong to you"}, status=403)
+            
         if booking.status != "AWAITING_APPROVAL":
              return Response({"detail": "Booking is not awaiting approval"}, status=400)
 
@@ -145,8 +154,12 @@ class VendorBookingRejectionAPIView(APIView):
     permission_classes = [HasValidJWT]
 
     def post(self, request, booking_id):
+        vendor_id = request.auth["user_id"]
         booking = get_object_or_404(Booking, id=booking_id)
         
+        if str(booking.vendor_id) != str(vendor_id):
+            return Response({"detail": "This booking does not belong to you"}, status=403)
+            
         if booking.status != "AWAITING_APPROVAL":
              return Response({"detail": "Booking is not awaiting approval"}, status=400)
 
@@ -154,10 +167,16 @@ class VendorBookingRejectionAPIView(APIView):
             booking.status = "REJECTED"
             booking.save(update_fields=["status"])
             
-            booking.sub_order.status = "CANCELLED"
-            booking.sub_order.save(update_fields=["status"])
+            sub_order = booking.sub_order
+            sub_order.status = "CANCELLED"
+            sub_order.save(update_fields=["status"])
+            
+            # Reduce master order total
+            master_order = sub_order.master_order
+            master_order.total_amount -= sub_order.amount
+            master_order.save(update_fields=["total_amount"])
             
             # Check Master Order status
-            update_master_order_status(booking.sub_order.master_order)
+            update_master_order_status(master_order)
 
         return Response({"status": "REJECTED"})

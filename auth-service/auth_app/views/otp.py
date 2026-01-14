@@ -36,7 +36,10 @@ class SendOTPView(APIView):
         user = User.objects.filter(email=email).first()
         
         if not user:
-            return Response({"detail": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "User not found"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
         
         raw_otp, otp_obj = create_otp_for_user(user, purpose)
 
@@ -47,7 +50,10 @@ class SendOTPView(APIView):
             data={"otp": raw_otp},
         )
 
-        return Response({"detail": "OTP sent"}, status=status.HTTP_200_OK)
+        return Response(
+            {"detail": "OTP sent"}, 
+            status=status.HTTP_200_OK
+        )
 
 
 class VerifyOTPView(APIView):
@@ -69,7 +75,10 @@ class VerifyOTPView(APIView):
         user = User.objects.filter(email=email).first()
         
         if not user:
-            return Response({"detail": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "User not found"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
 
         otp_obj = OTP.objects.filter(
             user=user, 
@@ -79,13 +88,17 @@ class VerifyOTPView(APIView):
         ).order_by("-created_at").first()
 
         if not otp_obj:
-            return Response({"detail": "Invalid or expired OTP"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Invalid or expired OTP"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         if not verify_otp_entry(otp_obj, otp_value):
-            return Response({"detail": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Invalid OTP"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        # otp_obj.used = True
-        # otp_obj.save()
 
         if purpose == "email_verify":
             user.email_verified = True
@@ -96,7 +109,10 @@ class VerifyOTPView(APIView):
             otp_obj.used = True
             otp_obj.save()
 
-        return Response({"detail": "OTP verified successfully"}, status=status.HTTP_200_OK)
+        return Response(
+            {"detail": "OTP verified successfully"}, 
+            status=status.HTTP_200_OK
+        )
 
 
 class SendResetOTPView(APIView):
@@ -116,7 +132,10 @@ class SendResetOTPView(APIView):
         user = User.objects.filter(email=email).first()
 
         if not user:
-            return Response({"detail": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "User not found"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
 
         raw_otp, otp_obj = create_otp_for_user(user, "reset_password")
 
@@ -127,5 +146,8 @@ class SendResetOTPView(APIView):
             data={"otp": raw_otp},
         )
         
-        return Response({"detail": "Reset OTP sent"}, status=status.HTTP_200_OK)
+        return Response(
+            {"detail": "Reset OTP sent"}, 
+            status=status.HTTP_200_OK
+        )
 
