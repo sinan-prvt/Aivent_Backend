@@ -129,7 +129,7 @@ SIMPLE_JWT = {
 # For production, uncomment AWS S3 settings
 
 # Local storage (development)
-MEDIA_URL = 'http://localhost:8003/media/'
+MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 # AWS S3 Configuration (production - currently disabled)

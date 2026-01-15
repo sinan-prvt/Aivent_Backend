@@ -36,11 +36,23 @@ class PaymentInitiateAPIView(APIView):
         ).first()
         
         if successful_payment:
+            # Self-healing: Ensure core-service knows it's paid
+            try:
+                # Use setting or fallback
+                core_url = getattr(settings, "CORE_SERVICE_URL", "http://core-service:8000")
+                requests.post(
+                    f"{core_url}/internal/payments/success/",
+                    json={"order_id": str(order_id)},
+                    timeout=5
+                )
+            except Exception as e:
+                logger.error(f"Self-healing notification failed: {e}")
+
             return Response({
+                "detail": "Payment already confirmed! Please refresh the page.",
                 "platform_order_id": str(order_id),
                 "status": successful_payment.status,
-                "note": "Order already paid/confirmed"
-            }, status=status.HTTP_200_OK)
+            }, status=status.HTTP_400_BAD_REQUEST)
 
         # 1. Check for an existing CREATED payment to reuse
         existing_payment = Payment.objects.filter(
@@ -152,7 +164,18 @@ class PaymentCODAPIView(APIView):
         ).exists()
         
         if existing_paid:
-            return Response({"detail": "Order already processed"}, status=400)
+            # Self-healing for COD: Ensure core-service knows it's paid
+            try:
+                core_url = getattr(settings, "CORE_SERVICE_URL", "http://core-service:8000")
+                requests.post(
+                    f"{core_url}/internal/payments/success/",
+                    json={"order_id": str(order_id)},
+                    timeout=5
+                )
+            except Exception as e:
+                logger.error(f"Self-healing COD notification failed: {e}")
+
+            return Response({"detail": "Order already processed! Please refresh the page."}, status=400)
 
         # Create COD Payment record
         payment = Payment.objects.create(
