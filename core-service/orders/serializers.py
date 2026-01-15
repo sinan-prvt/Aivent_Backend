@@ -6,15 +6,20 @@ class SubOrderSerializer(serializers.ModelSerializer):
     booking_status = serializers.SerializerMethodField()
     booking_details = serializers.SerializerMethodField()
     booking_id = serializers.SerializerMethodField()
+    booking_user_id = serializers.SerializerMethodField()
 
     class Meta:
         model = SubOrder
-        fields = ["id", "vendor_id", "vendor_name", "amount", "status", "booking_status", "booking_id", "created_at", "booking_details"]
+        fields = ["id", "vendor_id", "vendor_name", "amount", "status", "booking_status", "booking_id", "booking_user_id", "created_at", "booking_details"]
 
     def get_vendor_name(self, obj):
         if hasattr(obj, "booking"):
             return obj.booking.vendor_name
         return "Aivent Partner"
+
+    def get_booking_user_id(self, obj):
+        # MasterOrder has the user_id
+        return obj.master_order.user_id
 
     def get_booking_status(self, obj):
         if hasattr(obj, "booking"):
@@ -33,7 +38,13 @@ class SubOrderSerializer(serializers.ModelSerializer):
                 "guests": obj.booking.guests,
                 "product_title": obj.booking.product_name,
                 "event_type": obj.booking.event_type,
-                "category_name": obj.booking.category_name
+                "category_name": obj.booking.category_name,
+                "customer_name": obj.booking.customer_name,
+                "customer_email": obj.booking.customer_email,
+                "customer_phone": obj.booking.customer_phone,
+                "customer_address": obj.booking.customer_address,
+                "customer_city": obj.booking.customer_city,
+                "customer_notes": obj.booking.customer_notes
             }
         return None
 

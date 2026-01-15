@@ -73,14 +73,16 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
+import os
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": "core_db",
-        "USER": "core",
-        "PASSWORD": "corepass",
-        "HOST": "core_db",
-        "PORT": 5432,
+        "NAME": os.getenv("POSTGRES_DB", "core_db"),
+        "USER": os.getenv("POSTGRES_USER", "core"),
+        "PASSWORD": os.getenv("POSTGRES_PASSWORD", "corepass"),
+        "HOST": os.getenv("POSTGRES_HOST", "core_db"),
+        "PORT": os.getenv("POSTGRES_PORT", 5432),
     }
 }
 

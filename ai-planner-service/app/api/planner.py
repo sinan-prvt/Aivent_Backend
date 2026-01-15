@@ -30,6 +30,7 @@ class UserPreferences(BaseModel):
     event_type: str | None = None
     budget: str | None = None
     guests: int | None = 100
+    categories: list[str] | None = None
 
 
 class PlanRequest(BaseModel):
@@ -143,27 +144,64 @@ def plan(payload: PlanRequest, explain: bool = False):
         
         # 1️⃣ GET AI BUDGET CATEGORIZATION (PROMPTING PHASE)
         distribution = get_budget_distribution(event_type, total_budget)
-        print(f"[PLANNER] AI distribution: {distribution}", flush=True)
+        print(f"[PLANNER] AI raw distribution: {distribution}", flush=True)
         
         plan_items = []
         recommended_services = []
 
-        # 2️⃣ FETCH AND SELECT PRODUCTS (PROMPTING PHASE)
-        for raw_service, percent in distribution.items():
-            service = raw_service.strip() # Strip any spaces from LLM
+        # Mapping from frontend display names to backend service keys
+        CATEGORY_TO_SERVICE = {
+            "venue": "venue",
+            "catering & food": "catering",
+            "catering": "catering",
+            "decoration & styling": "decoration",
+            "decoration": "decoration",
+            "photography & video": "photography",
+            "photography": "photography",
+            "sound & music": "dj",
+            "sound": "dj",
+            "lighting & effects": "lighting",
+            "lighting": "lighting",
+        }
+
+        # 2️⃣ FETCH AND SELECT PRODUCTS - Iterate over USER's selected categories
+        user_categories = payload.preferences.categories if payload.preferences and payload.preferences.categories else []
+        
+        # If no categories selected, we still process the ones from the distribution
+        categories_to_process = user_categories if user_categories else list(distribution.keys())
+        
+        print(f"[PLANNER] Processing categories: {categories_to_process}", flush=True)
+        
+        # Canonical distribution for final output
+        final_distribution = {}
+        
+        for raw_category in categories_to_process:
+            # Map the display name to a service key
+            service = CATEGORY_TO_SERVICE.get(raw_category.lower().strip())
+            if not service:
+                # Try to extract first word as service
+                service = raw_category.lower().split('&')[0].split(' ')[0].strip()
+            
+            print(f"[PLANNER] Processing category '{raw_category}' -> service '{service}'", flush=True)
+            
+            # Get budget percent from distribution (default to equal distribution if 0 or missing)
+            percent = distribution.get(service, distribution.get(service.capitalize(), 0))
             if percent <= 0:
-                continue
-                
+                percent = 100 / (len(categories_to_process) or 1)
+            
+            final_distribution[service] = percent
+            
             category_budget = (percent / 100) * total_budget
-            print(f"[PLANNER] Service '{service}': budget={category_budget}", flush=True)
+            print(f"[PLANNER] Service '{service}': budget={category_budget} ({percent}%)", flush=True)
+            
             products = fetch_products(service)
             
-            # Filter by stock/availability
-            products = [p for p in products if p.get("is_available", True) and p.get("stock", 0) > 0]
-            print(f"[PLANNER] Service '{service}': fetched {len(products)} available products", flush=True)
+            # Filter by availability
+            products = [p for p in products if p.get("is_available", True)]
+            print(f"[PLANNER] Service '{service}': fetched {len(products)} products", flush=True)
             
             # Filter by category budget (relaxed limit - 2x budget)
-            filtered_products = [p for p in products if float(p.get("price", 0)) <= category_budget * 2.0]
+            filtered_products = [p for p in products if float(p.get("price", 0)) <= category_budget * 2.5]
             print(f"[PLANNER] Service '{service}': {len(filtered_products)} products within budget limit", flush=True)
 
             # If no products within budget, use ALL available products but tell LLM to be budget conscious
@@ -182,12 +220,20 @@ def plan(payload: PlanRequest, explain: bool = False):
                 )
                 
                 if selection:
+                    # Robust image path handling - ensure it starts with /media/ if it's relative
+                    rec_prod = selection["product"]
+                    if rec_prod.get("image") and not rec_prod["image"].startswith("http"):
+                        if not rec_prod["image"].startswith("/"):
+                            rec_prod["image"] = "/media/" + rec_prod["image"]
+                        elif not rec_prod["image"].startswith("/media/"):
+                            rec_prod["image"] = "/media" + rec_prod["image"]
+
                     recommended_services.append(service)
                     plan_items.append({
                         "service": service,
                         "recommended": True,
                         "reason": selection["reason"],
-                        "recommended_product": selection["product"],
+                        "recommended_product": rec_prod,
                         "alternatives": [p for p in target_products if p['id'] != selection['product']['id']][:2],
                         "ai_pick": True
                     })
@@ -196,13 +242,16 @@ def plan(payload: PlanRequest, explain: bool = False):
 
         # 3️⃣ CALCULATE FINAL BUDGET BREAKDOWN
         budget_breakdown = {}
-        for service, percent in distribution.items():
+        # Ensure we return at least the categories we processed
+        for service, percent in final_distribution.items():
             budget_breakdown[service] = {
-                "percent": percent,
+                "percent": round(percent, 2),
                 "amount": int((percent / 100) * total_budget)
             }
 
+        print(f"[PLANNER] Final budget breakdown: {budget_breakdown}", flush=True)
         print(f"[PLANNER] Plan generation complete. Items: {len(plan_items)}", flush=True)
+        
         return {
             "event_type": event_type,
             "budget_val": total_budget,

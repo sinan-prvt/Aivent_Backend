@@ -13,6 +13,8 @@ class BookingCreateSerializer(serializers.ModelSerializer):
         fields = [
             "vendor_id", "vendor_name", "product_name", 
             "category_name", "event_type", "guests", 
-            "event_date", "amount", "sub_order"
+            "event_date", "amount", "sub_order",
+            "customer_name", "customer_email", "customer_phone", 
+            "customer_address", "customer_city", "customer_notes"
         ]
         read_only_fields = ["sub_order"]

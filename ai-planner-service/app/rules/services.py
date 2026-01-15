@@ -4,4 +4,5 @@ PLANNABLE_SERVICES = [
     "photography",
     "dj",
     "venue",
+    "lighting",
 ]

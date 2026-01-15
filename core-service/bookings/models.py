@@ -20,6 +20,15 @@ class Booking(models.Model):
     event_type = models.CharField(max_length=100, default="Event")
     guests = models.CharField(max_length=50, default="N/A")
     event_date = models.DateField()
+
+    # Booking Contact Details
+    customer_name = models.CharField(max_length=255, blank=True, null=True)
+    customer_email = models.EmailField(blank=True, null=True)
+    customer_phone = models.CharField(max_length=50, blank=True, null=True)
+    customer_address = models.TextField(blank=True, null=True)
+    customer_city = models.CharField(max_length=100, blank=True, null=True)
+    customer_notes = models.TextField(blank=True, null=True)
+    
     
     # Link to SubOrder in orders app
     sub_order = models.OneToOneField(

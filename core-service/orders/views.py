@@ -15,6 +15,7 @@ class PaymentSuccessAPIView(APIView):
 
     def post(self, request):
         import logging
+        from django.core.exceptions import ObjectDoesNotExist, ValidationError
         logger = logging.getLogger(__name__)
         master_order_id = request.data.get("order_id")
         logger.info(f"Received payment success notification for order: {master_order_id}")
@@ -41,8 +42,17 @@ class PaymentSuccessAPIView(APIView):
                     sub.save(update_fields=["status"])
 
                     # 3. Confirm booking linked to sub-order
-                    if hasattr(sub, "booking"):
-                        sub.booking.confirm()
+                    try:
+                        # Accessing reverse OneToOne can raise ObjectDoesNotExist
+                        booking = sub.booking
+                        booking.confirm()
+                    except ObjectDoesNotExist:
+                        logger.warning(f"SubOrder {sub.id} has no linked booking to confirm.")
+                    except ValidationError as e:
+                        logger.error(f"Cannot confirm booking {sub.booking.id if hasattr(sub, 'booking') else '?'}: {e}")
+                        # Optionally force update status if needed, but logging is crucial
+                    except Exception as e:
+                        logger.error(f"Unexpected error confirming booking for sub_order {sub.id}: {e}")
 
         except MasterOrder.DoesNotExist:
             return Response(
