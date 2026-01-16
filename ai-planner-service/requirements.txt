@@ -8,3 +8,7 @@ faiss-cpu
 requests
 pyyaml
 pydantic
+pytest
+pytest-asyncio
+pytest-cov
+httpx

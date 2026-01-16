@@ -18,3 +18,9 @@ pyotp
 django-extensions
 boto3
 whitenoise
+
+pytest
+pytest-django
+pytest-asyncio
+pytest-cov
+model-bakery

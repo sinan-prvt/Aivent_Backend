@@ -7,7 +7,7 @@ from catalog_app.views.public import (
 )
 
 urlpatterns = [
-    path("categories/", CategoryListView.as_view()),
+    path("categories/", CategoryListView.as_view(), name="category-list"),
     path("categories/<slug:slug>/products/", ProductByCategoryView.as_view()),
     path("products/", ProductListView.as_view()),
     path("products/<int:pk>/", ProductDetailView.as_view()),

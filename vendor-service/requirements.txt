@@ -17,3 +17,8 @@ redis==4.5.5
 django-extensions
 PyJWT>=2.8.0
 cryptography>=41.0.0
+pytest
+pytest-django
+pytest-asyncio
+pytest-cov
+model-bakery

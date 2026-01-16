@@ -7,3 +7,8 @@ PyJWT==2.8.0
 python-dotenv>=1.0
 djangorestframework
 django-cors-headers
+pytest
+pytest-django
+pytest-asyncio
+pytest-cov
+model-bakery
