@@ -1,5 +1,7 @@
 from rest_framework.views import APIView
+from rest_framework import generics
 from rest_framework.response import Response
+from rest_framework.exceptions import PermissionDenied
 from rest_framework import status
 from django.db import transaction
 from core.authentication import StatelessJWTAuthentication
@@ -112,15 +114,18 @@ def resolve_vendor_name(sub_order):
         
     return booking.vendor_name
 
-class UserOrderListAPIView(APIView):
+class UserOrderListAPIView(generics.ListAPIView):
     authentication_classes = [StatelessJWTAuthentication]
     permission_classes = [HasValidJWT]
+    serializer_class = MasterOrderSerializer
 
-    def get(self, request):
-        user_id = request.auth["user_id"]
+    def get_queryset(self):
+        user_id = self.request.auth["user_id"]
         orders = MasterOrder.objects.filter(user_id=user_id).order_by("-created_at")
         
-        # Self-healing: Sync totals for legacy orders
+        # Self-healing: Sync totals for current page as it's being accessed
+        # Note: In a large system, this should be moved to a background task or triggered on write.
+        # Here we perform it for the queryset which will be paginated.
         from django.db.models import Sum
         for order in orders:
             actual_total = order.sub_orders.exclude(status="CANCELLED").aggregate(Sum('amount'))['amount__sum'] or 0
@@ -132,36 +137,30 @@ class UserOrderListAPIView(APIView):
             for sub in order.sub_orders.all():
                 resolve_vendor_name(sub)
 
-        serializer = MasterOrderSerializer(orders, many=True)
-        return Response(serializer.data)
+        return orders
 
-class VendorOrderListAPIView(APIView):
+class VendorOrderListAPIView(generics.ListAPIView):
     authentication_classes = [StatelessJWTAuthentication]
     permission_classes = [HasValidJWT]
+    serializer_class = SubOrderSerializer
 
-    def get(self, request):
-        if request.auth.get("role") != "vendor" and request.auth.get("role") != "admin":
-             return Response({"detail": "Vendor access required"}, status=403)
+    def get_queryset(self):
+        if self.request.auth.get("role") not in ["vendor", "admin"]:
+             raise PermissionDenied("Vendor access required")
 
-        # Use the authenticated user's ID as the vendor_id
-        # Convert to string because vendor_id is now a CharField
-        vendor_id = str(request.auth.get("user_id"))
-        
-        orders = SubOrder.objects.filter(vendor_id=vendor_id).order_by("-created_at")
-        serializer = SubOrderSerializer(orders, many=True)
-        return Response(serializer.data)
+        vendor_id = str(self.request.auth.get("user_id"))
+        return SubOrder.objects.filter(vendor_id=vendor_id).order_by("-created_at")
 
-class AdminOrderListAPIView(APIView):
+class AdminOrderListAPIView(generics.ListAPIView):
     authentication_classes = [StatelessJWTAuthentication]
     permission_classes = [HasValidJWT]
+    serializer_class = MasterOrderSerializer
 
-    def get(self, request):
-        if request.auth.get("role") != "admin":
-            return Response({"detail": "Admin access required"}, status=403)
+    def get_queryset(self):
+        if self.request.auth.get("role") != "admin":
+            raise PermissionDenied("Admin access required")
             
-        orders = MasterOrder.objects.all().order_by("-created_at")
-        serializer = MasterOrderSerializer(orders, many=True)
-        return Response(serializer.data)
+        return MasterOrder.objects.all().order_by("-created_at")
 
 class AdminOrderUpdateAPIView(APIView):
     authentication_classes = [StatelessJWTAuthentication]

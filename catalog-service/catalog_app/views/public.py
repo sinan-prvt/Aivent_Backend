@@ -11,6 +11,7 @@ from django.shortcuts import get_object_or_404
 class CategoryListView(ListCreateAPIView):
     authentication_classes = []   # 🔥 disable JWT
     permission_classes = [AllowAny]
+    pagination_class = None
 
     queryset = Category.objects.filter(is_active=True, parent__isnull=True)
     serializer_class = CategorySerializer

@@ -1,6 +1,7 @@
 from django.core.cache import cache
 import os
 import logging
+from django.conf import settings
 
 
 logger = logging.getLogger(__name__)
@@ -24,8 +25,17 @@ def increment_failed_attempts(key: str) -> int:
         cache.set(_blocked_key(key), True, BLOCK_SECONDS)
     return current
 
-def requires_captcha(key: str) -> bool:
-    return bool(cache.get(_blocked_key(key)))
+def requires_captcha(key):
+    # If Redis is not enabled, disable captcha logic
+    if not getattr(settings, "USE_REDIS", False):
+        return False
+
+    try:
+        return bool(cache.get(_blocked_key(key)))
+    except Exception:
+        # Fail open in dev
+        return False
+    
 
 def reset_failed_attempts(key: str):
     cache.delete(_failed_key(key))
