@@ -165,12 +165,21 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
+
+
+
+
+
 REST_FRAMEWORK = { 
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication", 
     ],
     "EXCEPTION_HANDLER": "auth_app.core.exceptions.custom_exception_handler",
 }
+
+
+
+
 
 REDIS_HOST = os.getenv("REDIS_HOST", "redis")
 REDIS_PORT = int(os.getenv("REDIS_PORT_NUMBER", "6379"))
