@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-celery-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auth-celery-worker
+  template:
+    metadata:
+      labels:
+        app: auth-celery-worker
+    spec:
+      containers:
+        - name: worker
+          image: auth-service:5.0
+          command: ["celery"]
+          args: ["-A", "auth_project", "worker", "-l", "info"]
+          env:
+            - name: CELERY_BROKER_URL
+              value: amqp://rabbitmq:5672//
+            - name: CELERY_RESULT_BACKEND
+              value: redis://redis:6379/0
