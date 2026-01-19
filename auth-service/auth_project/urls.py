@@ -5,6 +5,7 @@ from drf_yasg import openapi
 from django.conf import settings
 from django.conf.urls.static import static
 from auth_app.views.internal_users import InternalUserCreateView
+from .views import health_check
 
 from rest_framework import permissions
 
@@ -20,6 +21,7 @@ schema_view = get_schema_view(
 
 
 urlpatterns = [
+    path("health/", health_check, name="health_check"),
     path('admin/', admin.site.urls),
     path("api/auth/", include("auth_app.urls")),
     path("api/users/", include("user_app.urls")),

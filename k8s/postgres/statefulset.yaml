@@ -24,4 +24,11 @@ spec:
             - name: POSTGRES_PASSWORD
               value: admin123
             - name: POSTGRES_DB
-              value: auth_db
+              value: postgres
+          volumeMounts:
+            - name: init-db
+              mountPath: /docker-entrypoint-initdb.d/
+      volumes:
+        - name: init-db
+          configMap:
+            name: postgres-init-config

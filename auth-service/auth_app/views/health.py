@@ -32,12 +32,12 @@ def health_check(request):
 
     # Celery Check
     try:
-        from auth_app.tasks import send_email_task
-        test_task = send_email_task.delay("Health Check", "OK", ["example@example.com"])
+        from celery import current_app
+        current_app.control.ping(timeout=1)
         celery_status = "running"
     except Exception as e:
         celery_status = f"error: {str(e)}"
-
+    
     return JsonResponse({
         "status": "ok",
         "services": {
