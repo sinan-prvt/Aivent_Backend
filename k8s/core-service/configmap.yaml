@@ -6,9 +6,9 @@ data:
   DJANGO_SETTINGS_MODULE: "core_service.settings"
   DEBUG: "false"
 
-  DB_HOST: "postgres"
-  DB_PORT: "5432"
-  DB_NAME: "core_db"
+  POSTGRES_HOST: "postgres"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "core_db"
 
   REDIS_HOST: "redis"
   REDIS_PORT: "6379"

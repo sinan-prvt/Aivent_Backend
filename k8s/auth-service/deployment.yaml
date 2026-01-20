@@ -31,15 +31,15 @@ spec:
             initialDelaySeconds: 30
             periodSeconds: 10
           env:
-            - name: DB_HOST
+            - name: POSTGRES_HOST
               value: postgres
-            - name: DB_PORT
+            - name: POSTGRES_PORT
               value: "5432"
-            - name: DB_NAME
+            - name: POSTGRES_DB
               value: auth_db
-            - name: DB_USER
+            - name: POSTGRES_USER
               value: admin
-            - name: DB_PASSWORD
+            - name: POSTGRES_PASSWORD
               value: admin123
             - name: REDIS_URL
               value: redis://redis:6379/0

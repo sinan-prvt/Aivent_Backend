@@ -14,15 +14,41 @@ spec:
     spec:
       containers:
         - name: core-service
-          image: sinanpk/core-service:latest
+          image: aivents/core-service:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
-          envFrom:
-            - configMapRef:
-                name: core-service-config
-            - secretRef:
-                name: core-service-secrets
+          env:
+            - name: POSTGRES_HOST
+              value: "postgres"
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_DB
+              value: "core_db"
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: core-service-secrets
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: core-service-secrets
+                  key: POSTGRES_PASSWORD
+            - name: DJANGO_SETTINGS_MODULE
+              value: "core.settings"
+            - name: DEBUG
+              value: "false"
+            - name: REDIS_HOST
+              value: "redis"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: RABBITMQ_HOST
+              value: "rabbitmq"
+            - name: RABBITMQ_PORT
+              value: "5672"
+            - name: AUTH_SERVICE_URL
+              value: "http://auth-service"
 
           readinessProbe:
             httpGet:
