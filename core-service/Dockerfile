@@ -14,4 +14,5 @@ COPY . .
 
 RUN mkdir -p /app/keys
 
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000", "--noreload"]
+
+CMD ["gunicorn", "core.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3"]

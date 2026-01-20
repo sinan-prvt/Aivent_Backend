@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: core-service
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: core-service
@@ -14,52 +14,48 @@ spec:
     spec:
       containers:
         - name: core-service
-          image: aivents/core-service:latest
+          image: sinanpk/core-service:latest
           imagePullPolicy: IfNotPresent
+
+          command: ["gunicorn"]
+
+          args:
+          - "core.wsgi:application"
+          - "--bind"
+          - "0.0.0.0:8000"
+          - "--workers"
+          - "2"
+
+
           ports:
             - containerPort: 8000
-          env:
-            - name: POSTGRES_HOST
-              value: "postgres"
-            - name: POSTGRES_PORT
-              value: "5432"
-            - name: POSTGRES_DB
-              value: "core_db"
-            - name: POSTGRES_USER
-              valueFrom:
-                secretKeyRef:
-                  name: core-service-secrets
-                  key: POSTGRES_USER
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: core-service-secrets
-                  key: POSTGRES_PASSWORD
-            - name: DJANGO_SETTINGS_MODULE
-              value: "core.settings"
-            - name: DEBUG
-              value: "false"
-            - name: REDIS_HOST
-              value: "redis"
-            - name: REDIS_PORT
-              value: "6379"
-            - name: RABBITMQ_HOST
-              value: "rabbitmq"
-            - name: RABBITMQ_PORT
-              value: "5672"
-            - name: AUTH_SERVICE_URL
-              value: "http://auth-service"
+
+          envFrom:
+            - configMapRef:
+                name: core-service-config
+            - secretRef:
+                name: core-service-secrets
+
+          volumeMounts:
+            - name: jwt-public-key
+              mountPath: /app/keys
+              readOnly: true
 
           readinessProbe:
             httpGet:
-              path: /health/
+              path: /api/bookings/
               port: 8000
-            initialDelaySeconds: 10
+            initialDelaySeconds: 15
             periodSeconds: 5
 
           livenessProbe:
             httpGet:
-              path: /health/
+              path: /api/bookings/
               port: 8000
             initialDelaySeconds: 30
             periodSeconds: 10
+
+      volumes:
+        - name: jwt-public-key
+          secret:
+            secretName: core-service-keys
